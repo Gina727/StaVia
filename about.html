@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>StaVia</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <!-- Navigation Bar -->
+        <ul class="navbar">
+            <div class="container">
+                <li><a class="" href="{{ url_for('home') }}"><b>StaVia</b></a></li>
+                <li><a href="tutorial.html">Tutorial</a></li>
+                <li><a href="{{ url_for('upload_page') }}">Action</a></li>
+                <li><a href="{{ url_for('about_page') }}">About Us</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </div>
+        </ul>
+
+        <!-- Banner -->
+        <div class="banner2">
+            <div class="banner-image">
+                <img src="http://study.com/cimages/course-image/pssa-science-grade-8-test-prep-practice_233026_large.jpg" alt="Banner Image">
+            </div>
+
+            <div class="banner-content2">
+                <h1>StaVia</h1>
+                <hr class="bannerhr">
+                <p>About Us</p>
+            </div>
+        </div>
+
+        <!-- All Content -->
+        <div id = "lower" class = "content-container">
+            <!-- About Us -->
+            <div class = "text-box">
+                <h2>Our Lab and Developers</h2>
+                <hr class="heading-underline">
+                <div class="two-column-layout">
+                    <div class="left-column">
+                        <p class = "justify">&emsp;&emsp;Our biomedical engineering research team led by Professor Kevin Tsia,
+                            programme director of the Biomedical Engineering Programme under the Faculty of Engineering of the University of Hong Kong, 
+                            in collaboration with Professor Joshua Ho and Professor Yuanhua Huang from the Li Ka Shing Faculty of Medicine, has created an all-in-one large-scale computational 
+                            framework <i>StaVia</i> to uncover the development of cellular trajectories.
+                            <br>
+                            <br>
+                            &emsp;&emsp;This novel computational tool was developed by our post-doctoral student, Shobana Venkant Stassen, and PhD student, Minato Kobashi.
+                            We have successfully applied the tool in analysing the development process of zebrafish embryos. StaVia optimizes the germ layer differentiation
+                            analysis in zebrafish development with only the use of Stereo-seq data, thereby integrating spatial coordinates, gene expression, and time-series data
+                            for intuitive cartographic analysis and atlas view. 
+                        </p>
+                    </div>
+
+                    <div class="right-column">
+                        <div class="imgslideshow-container">
+                            
+                            <div class="imgmySlides fade">   
+                                <div class="flex-item">
+                                    <div class="newflex-image">
+                                    <img src="http://abic.hk/wp-content/uploads/2023/02/kevinTsia-1.jpg" alt="Developer 1">
+                                    </div>
+                                    <div class="flex-content">
+                                    <h3>Prof. Kevin K.M. Tsia</h3>
+                                    <p>(Description or Quote)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="imgmySlides fade">   
+                                <div class="flex-item">
+                                    <div class="newflex-image">
+                                    <img src="https://avatars.githubusercontent.com/u/35950152?v=4?s=400" alt="Developer 2">
+                                    </div>
+                                    <div class="flex-content">
+                                    <h3>Shobana Stassen</h3>
+                                    <p>(Description or Quote)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="imgmySlides fade">   
+                                <div class="flex-item">
+                                    <div class="newflex-image">
+                                    <img src="https://static.wixstatic.com/media/865bf1_2ede5d9ef83b4f2aa94d4215cc4380d5~mv2.jpeg/v1/crop/x_0,y_62,w_490,h_490/fill/w_220,h_220,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/Photo%20Minato.jpeg" alt="Developer 3">
+                                    </div>
+                                    <div class="flex-content">
+                                    <h3>Minato Kobashi</h3>
+                                    <p>(Description or Quote)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="imgmySlides fade">   
+                                <div class="flex-item">
+                                    <div class="newflex-image">
+                                    <img src="https://www.d24h.hk/media/2021/03/Dr-Joshua-Ho-1-1440x1920.jpg" alt="Developer 4">
+                                    </div>
+                                    <div class="flex-content">
+                                    <h3>Prof. Ho Wing Kei</h3>
+                                    <p>(Description or Quote)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="imgmySlides fade">   
+                                <div class="flex-item">
+                                    <div class="newflex-image">
+                                    <img src="https://statbiomed.github.io/assets/images/huang_yuanhua.jpg" alt="Developer 5">
+                                    </div>
+                                    <div class="flex-content">
+                                    <h3>Prof. Yuanhua Huang</h3>
+                                    <p>(Description or Quote)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div style="text-align:center">
+                        <span class="imgdot" onclick="picCurrentSlide(1)"></span>
+                        <span class="imgdot" onclick="picCurrentSlide(2)"></span>
+                        <span class="imgdot" onclick="picCurrentSlide(3)"></span>
+                        <span class="imgdot" onclick="picCurrentSlide(4)"></span>
+                        <span class="imgdot" onclick="picCurrentSlide(5)"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <!-- Grid container -->
+            <div class="footer-content">
+                <!-- Section: Links -->
+                <section>
+                    <div class="footer-grid">
+                        <div class="footer-column">
+                            <h6 class="footer-headingmain">StaVia</h6>
+                            <p>
+                                Spatially and Temporally Aware Cartography with 
+                                Higher-Order Random Walks for Cell Atlases
+                            </p>
+                            <a class="banner-button">Register Now</a>
+                        </div>
+                        <!-- Grid column -->
+
+                        <div class="mobile-divider"></div>
+
+                        <!-- Grid column -->
+                        <div class="footer-column">
+                            <h6 class="footer-heading">Quick Links</h6>
+                            <p>
+                                <a class="footer-link">Home Page</a>
+                            </p>
+                            <p>
+                                <a class="footer-link">Tutorial</a>
+                            </p>
+                            <p>
+                                <a class="footer-link">Action</a>
+                            </p>
+                            <p>
+                                <a class="footer-link">About Us</a>
+                            </p>
+                        </div>
+                        <!-- Grid column -->
+
+                        <div class="mobile-divider"></div>
+
+                        <!-- Grid column -->
+                        <div class="footer-column">
+                            <h6 class="footer-heading">Contact</h6>
+                            <p class="contact-info">
+                                <i class="fas fa-home contact-icon"></i> The University of Hong Kong, Pokfulam, Hong Kong
+                            </p>
+                            <p class="contact-info">
+                                <i class="fas fa-envelope contact-icon"></i> (email)
+                            </p>
+                            <p class="contact-info">
+                                <i class="fas fa-phone contact-icon"></i> (phone number)
+                            </p>
+                        </div>
+                        <!-- Grid column -->
+
+                        <div class="mobile-divider"></div>
+
+                        <!-- Grid column -->
+                        <div class="footer-column">
+                            <h6 class="footer-heading">Follow us</h6>
+
+                            <div class="social-buttons">
+                                <!-- Facebook -->
+                                <a
+                                   class="social-btn"
+                                   style="background-color: #000"
+                                   href="#!"
+                                   role="button"
+                                   ><i class="fab fa-facebook-f"></i
+                                  ></a>
+
+                                <!-- Twitter -->
+                                <a
+                                   class="social-btn"
+                                   style="background-color: #000"
+                                   href="#!"
+                                   role="button"
+                                   ><i class="fab fa-twitter"></i
+                                  ></a>
+
+                                <!-- Google -->
+                                <a
+                                   class="social-btn"
+                                   style="background-color: #000"
+                                   href="#!"
+                                   role="button"
+                                   ><i class="fab fa-google"></i
+                                  ></a>
+
+                                <!-- Instagram -->
+                                <a
+                                   class="social-btn"
+                                   style="background-color: #000"
+                                   href="#!"
+                                   role="button"
+                                   ><i class="fab fa-instagram"></i
+                                  ></a>
+
+                                <!-- Linkedin -->
+                                <a
+                                   class="social-btn"
+                                   style="background-color: #000"
+                                   href="#!"
+                                   role="button"
+                                   ><i class="fab fa-linkedin-in"></i
+                                  ></a>
+                                <!-- Github -->
+                                <a
+                                   class="social-btn"
+                                   style="background-color: #000"
+                                   href="#!"
+                                   role="button"
+                                   ><i class="fab fa-github"></i
+                                  ></a>
+                            </div>
+                        </div>
+                    </div>
+                    <!--Grid row-->
+                </section>
+                <!-- Section: Links -->
+            </div>
+            <!-- Grid container -->
+
+            <!-- Copyright -->
+            <div class="copyright">
+                © 2024 Copyright:
+                <a href="https://pyvia.readthedocs.io/en/latest/pyVia-home.html">StaVia</a>
+            </div>
+            <!-- Copyright -->
+        </footer>
+        <!-- Footer -->
+
+
+    <script src="{{ url_for('static', filename='imgslider.js') }}"></script>          
+    </body>
+</html>

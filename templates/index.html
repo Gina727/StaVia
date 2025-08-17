@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='caction.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="fakebody">
+    <!-- Navigation Bar -->
+    <ul class="navbar">
+        <div class="container">
+            <li><a class="" href="{{ url_for('home') }}"><b>StaVia</b></a></li>
+            <li><a href="tutorial.html">Tutorial</a></li>
+            <li><a href="{{ url_for('upload_page') }}">Action</a></li>
+            <li><a href="{{ url_for('about_page') }}">About Us</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </div>
+    </ul>
+
+    <h1 class="heading">File Analyzer</h1>
+
+    <div class="banner2">
+        <div class="banner-image">
+            <img src="http://study.com/cimages/course-image/pssa-science-grade-8-test-prep-practice_233026_large.jpg" alt="Banner Image">
+        </div>
+
+        <div class="banner-content2">
+            <h1>StaVia</h1>
+            <hr class="bannerhr">
+            <p>Action</p>
+        </div>
+    </div>
+
+    <div class="tutorial">
+        <div class="step">
+            <i class="fa-solid fa-folder-open"></i>
+            <h2>File Upload</h2>
+            <p>Choose between the<br>two options</p>
+        </div>
+
+        <div class="step">
+            <i class="fa-solid fa-magnifying-glass-chart"></i>
+            <h2>Preview Data</h2>
+            <p>View AnnData<br>information and plots</p>
+        </div>
+
+        <div class="step">
+            <i class="fa-solid fa-user-gear"></i>
+            <h2>Parameter Input</h2>
+            <p>Tune parameters and<br>upload files</p>
+        </div>
+
+        <div class="step">
+            <i class="fa-solid fa-spinner"></i>
+            <h2>Begin Analysis</h2>
+            <p>The analysis takes<br>around 4 to 8 minutes</p>
+        </div>
+
+        <div class="step">
+            <i class="fa-solid fa-square-poll-vertical"></i>
+            <h2>Results</h2>
+            <p>View VIA plots and<br>other plots</p>
+        </div>
+    </div>
+
+
+    <!-- File Upload -->
+    <div class="all-content">
+        <div class="all-heading">
+            <i class="fa-solid fa-folder-open"></i>
+            <h2>File Upload</h2>
+            <div class="trailing-line"></div>
+        </div>
+        <div class="bigfile">
+            <div class="separate">
+                <h2>OPTION 1: UPLOAD H5AD FILE</h2>
+                <div id="dropAreaH5ad" class="drop-area2">
+                    <p class="desc">Drag & drop your <strong>.h5ad</strong> file here or</p>
+                    <input type="file" id="fileInputH5ad" accept=".h5ad" class="hidden-input">
+                    <button onclick="document.getElementById('fileInputH5ad').click()">Select File</button>
+                    <div id="h5ad-status" class="file-status">No file selected</div>
+                </div>
+            </div>
+
+            <div class="divider">
+                <span>OR</span>
+            </div>
+
+            <!-- Option 2 -->
+            <div class="separate">
+                <h2>OPTION 2: UPLOAD 10X GENOMICS FILES</h2>
+                <div class="moreflex">
+                    <!-- Matrix File -->
+                    <div id="dropAreaMtx" class="drop-area">
+                        <p class="desc">1. <strong>matrix.mtx</strong></p>
+                        <input type="file" name="matrix" id="fileInputMtx" accept=".mtx" class="hidden-input">
+                        <button onclick="document.getElementById('fileInputMtx').click()">Select File</button>
+                        <div id="mtx-status" class="file-status">No file selected</div>
+                    </div>
+
+                    <!-- Barcodes File -->
+                    <div id="dropAreaBarcodes" class="drop-area">
+                        <p class="desc">2. <strong>barcodes.tsv</strong></p>
+                        <input type="file" name="barcodes" id="fileInputBarcodes" accept=".tsv,.csv" class="hidden-input">
+                        <button onclick="document.getElementById('fileInputBarcodes').click()">Select File</button>
+                        <div id="barcodes-status" class="file-status">No file selected</div>
+                    </div>
+
+                    <!-- Genes File -->
+                    <div id="dropAreaGenes" class="drop-area">
+                        <p class="desc">3. <strong>genes.tsv</strong> or <strong>features.tsv</strong></p>
+                        <input type="file" name="genes" id="fileInputGenes" accept=".tsv,.csv" class="hidden-input">
+                        <button onclick="document.getElementById('fileInputGenes').click()">Select File</button>
+                        <div id="genes-status" class="file-status">No file selected</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="upload-validation" class="validation-message">
+            Please upload either: (1) a single .h5ad file OR (2) all three 10X Genomics files
+        </div>
+    </div>
+
+    <!-- Preview Data -->
+    <div class="all-content">
+        <div class="all-heading">
+            <i class="fa-solid fa-magnifying-glass-chart"></i>
+            <h2>Preview Data</h2>
+            <div class="trailing-line"></div>
+        </div>
+        <div class="all3">
+            <div class = "pref-container">
+                    <h3>Choice of Embedding</h3>
+                    <label class="toggle">
+                        <input type="checkbox" class="toggle-checkbox" name="em-option" value="umap" checked>
+                        <div class="toggle-switch"></div>
+                        <span class="toggle-label">UMAP</span>
+                    </label>
+                    <label class="toggle">
+                        <input type="checkbox" class="toggle-checkbox" name="em-option" value="pca">
+                        <div class="toggle-switch"></div>
+                        <span class="toggle-label">PCA</span>
+                    </label>
+                    <label class="toggle">
+                        <input type="checkbox" class="toggle-checkbox" name="em-option" value="phate">
+                        <div class="toggle-switch"></div>
+                        <span class="toggle-label">PHATE</span>
+                    </label>
+
+                    <div class="form-group">
+                        <span class="popup" data-popup-id="time-popup">
+                            <span>color_umap</span>
+                            <span class="popuptext" id="time-popup">
+                                Color the clusters in UMAP based on metadata column (e.g., "cell_type")
+                            </span>
+                        </span>
+                        <input class="form-field" type="text" placeholder="cluster" name="color_umap" value="cluster" id="color_umap">
+                    </div>
+
+                    
+                        <select id="color-select" class="dropdown-select">
+                            <option value="">Color scheme</option>
+                            <option value="viridis">Viridis</option>
+                            <option value="rainbow">Rainbow</option>
+                            <option value="paired">Paired</option>
+                            <option value="plasma">Plasma</option>
+                            <option value="inferno">Inferno</option>
+                        </select>
+                   
+
+                    <button id="updatePreviewBtn" class="btn-update">
+                        <i class="fas fa-sync-alt"></i> Update Preview
+                    </button>
+            </div>
+
+            <div class="pref-container5">
+                <div class="slider">
+                    <div class="slides">
+                        <div id="pca-container" style="display: none;">
+                            <img id="pca-plot" style="max-width: 100%; display: none;">
+                        </div> 
+                        
+                        <div id="umap-container" style="display: none;">
+                            <img id="umap-plot" style="max-width: 100%; display: none;">
+                        </div> 
+                        
+                        <div id="phate-container" style="display: none;">
+                            <img id="phate-plot" style="max-width: 100%; display: none;">
+                        </div> 
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+
+    <div class="anndata"></div>
+
+    <!-- VIA PARAMETERS -->
+    <div class="all-content2">
+        <div class="all-heading">
+            <i class="fa-solid fa-user-gear"></i>
+            <h2>Parameter Input</h2>
+            <div class="trailing-line"></div>
+        </div>
+        <div class="all">
+            <div class = "pref-container">
+                    <h3>Data Category</h3>
+                    <label class="toggle">
+                        <input type="checkbox" class="toggle-checkbox" name="par-option" value="time-series" checked>
+                        <div class="toggle-switch"></div>
+                        <span class="toggle-label">Time-Series</span>
+                    </label>
+                    <label class="toggle">
+                        <input type="checkbox" class="toggle-checkbox" name="par-option" value="rna-velocity">
+                        <div class="toggle-switch"></div>
+                        <span class="toggle-label">RNA velocity</span>
+                    </label>
+                    <label class="toggle">
+                        <input type="checkbox" class="toggle-checkbox" name="par-option" value="spatial-temporal">
+                        <div class="toggle-switch"></div>
+                        <span class="toggle-label">Spatial-Temporal</span>
+                    </label>
+                    
+                    <h3>Choice of Labels</h3>
+                    <p>Enter label here: </p>
+                    <div class="form-group">
+                        <span class="popup" data-popup-id="edge-popup">
+                            <span>true_label</span>
+                            <span class="popuptext" id="edge-popup">
+                                A list of str/int that correspond to the ground truth or reference annotations. 
+                                Can also be None when no labels are available.
+                            </span>
+                        </span>
+                        <input class="form-field" type="text" placeholder="None" name="true_label" value="None" id="true_label_input">
+                    </div>
+
+                    <p>Or upload a .csv file: </p>
+                    <input type="file" id="csv-upload" accept=".csv" style="display: none;">
+                    <button onclick="document.getElementById('csv-upload').click()" class="btn-csv">Select CSV File</button>
+                    <div id="csv-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+            </div>
+
+            <!-- Parameters -->
+            <div class = "pref-container3">
+                <div class="parameters">
+                    <div class="parameter-control">
+                        <span class="popup" data-popup-id="knn-popup">
+                            <span class="head">knn</span>
+                            <span class="popuptext" id="knn-popup">
+                                The number of K-Nearest Neighbors for HNSWlib KNN graph. Larger knn means more graph connectivity. 
+                                Lower knn means more loosely connected clusters/cells.
+                            </span>
+                        </span>
+                        <div class="range-slider" style="--min:10; --max:30; --step:1; --value:30;">
+                            <input type="range" min="10" max="30" step="1" value="30" name="knn"
+                                oninput="this.parentNode.style.setProperty('--value',this.value); this.nextElementSibling.textContent = this.value">
+                            <output>30</output>
+                            <div class="range-slider__progress"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="parameters">
+                    <div class="parameter-control">
+                        <span class="popup" data-popup-id="cluster-popup">
+                            <span class="head">cluster_graph_pruning</span>
+                            <span class="popuptext" id="cluster-popup">
+                                Pruning level of the cluster graph. Only impacts the connectivity of the clustergraph, and not the number of clusters. 
+                            Often set to the same value as edgepruning_clustering_resolution below.
+                            </span>
+                        </span>
+                        <div class="range-slider" style="--min:0.1; --max:1; --step:0.1; --value:0.2;">
+                            <input type="range" min="0.1" max="1" step="0.1" value="0.2" name="cluster_graph_pruning"
+                                oninput="this.parentNode.style.setProperty('--value',this.value); this.nextElementSibling.textContent = this.value">
+                            <output>0.2</output>
+                            <div class="range-slider__progress"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="parameters">
+                    <div class="parameter-control">
+                        <span class="popup" data-popup-id="prune-popup">
+                            <span class="head">edgebundle_pruning</span>
+                            <span class="popuptext" id="prune-popup">
+                            Often set to the same value as cluster_graph_pruning and influences 
+                            the visualized level of pruning of edges.
+                            </span>
+                        </span>
+                        <div class="range-slider" style="--min:0.1; --max:1; --step:0.1; --value:0.2;">
+                            <input type="range" min="0.1" max="1" step="0.1" value="0.2" name="edgebundle_pruning"
+                                oninput="this.parentNode.style.setProperty('--value',this.value); this.nextElementSibling.textContent = this.value">
+                            <output>0.2</output>
+                            <div class="range-slider__progress"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="parameters">
+                    <div class="parameter-control">
+                        <span class="popup" data-popup-id="edge-popup">
+                            <span class="head">edgepruning_clustering_resolution</span>
+                            <span class="popuptext" id="edge-popup">
+                                Graph pruning for PARC clustering stage. Higher value keeps more edges, 
+                                resulting in fewer clusters. Smaller value removes more edges and results 
+                                in more clusters. 
+                            </span>
+                        </span>
+                        <div class="range-slider" style="--min:0.1; --max:1; --step:0.1; --value:0.2;">
+                            <input type="range" min="0.1" max="1" step="0.1" value="0.2" name="edgepruning_clustering_resolution"
+                                oninput="this.parentNode.style.setProperty('--value',this.value); this.nextElementSibling.textContent = this.value">
+                            <output>0.2</output>
+                            <div class="range-slider__progress"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class = "pref-container">
+                    <h3>Choice of Root Cell</h3>
+                    <p>Enter root cell here: </p>
+                    <div class="form-group">
+                        <span class="popup" data-popup-id="root-popup">
+                            <span>root_user</span>
+                            <span class="popuptext" id="root-popup">
+                                Root cell to start exploring trajectory. It can be list of integers indicating index of cell in data matrix,
+                                or a cell annotation present in true_label. If RNA velocity is provided and root_user is None, 
+                                it will automatically infer a starting point.
+                            </span>
+                        </span>
+                        <input class="form-field" type="text" placeholder="None" name="root_user" value="None" id="root_user_input">
+                    </div>
+
+                    <p>Or upload RNA velocity: </p>
+                    <input type="file" id="root-upload" accept=".csv" style="display: none;">
+                    <button onclick="document.getElementById('root-upload').click()" class="btn-csv">Select CSV File</button>
+                    <div id="root-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+
+                    <h3>VIA Embedding</h3>
+                    <div class="form-group">
+                        <span class="popup" data-popup-id="obs-popup">
+                            <span>adata.obs</span>
+                            <span class="popuptext" id="obs-popup">
+                                A key in adata.obs for constructing VIA object. Same as true_label.
+                            </span>
+                        </span>
+                        <input class="form-field" type="text" placeholder="None" name="adata_obs" value="None" id="obs_input">
+                    </div>
+            </div>
+            
+        </div>
+
+        <!-- Tabs -->
+        <ul class="tabs" role="tablist">
+            <!-- First Tab -->
+            <li>
+                <input type="radio" name="tabs" id="tab1" value="via" checked />
+                <label for="tab1" 
+                    role="tab" 
+                    aria-selected="true" 
+                    aria-controls="panel1" 
+                    tabindex="0" class="tab-label">Time-Series</label>
+                <div id="tab-content1" 
+                    class="tab-content" 
+                    role="tabpanel" 
+                    aria-labelledby="description" 
+                    aria-hidden="false">
+                <div class = "centered-container">
+                    
+                    <div class="pref-container7">
+                        <p>Higher-order LTRW with memory are used to propagate information about a cell’s 
+                            previous states when inferring subsequent states (e.g., during differentiation)</p>
+                    </div>
+
+                    <div class="vertical-line"></div>
+
+                    <div class="pref-container4">
+                        <h3>Choice of Time-Series Labels</h3>
+                        <p>Enter the time-series labels: </p>
+                        <div class="form-group">
+                            <span class="popup" data-popup-id="time-popup">
+                                <span>time_series_labels</span>
+                                <span class="popuptext" id="time-popup">
+                                    List of time series labels in integers.
+                                    Can be in time (hour/days) or sequential ordering (1,2,3,…).
+                                </span>
+                            </span>
+                            <input class="form-field" type="text" placeholder="None" name="time_series_labels" value="None" id="time_series_labels">
+                        </div>
+
+                        <p>Or upload a .csv file: </p>
+                        <input type="file" id="time-upload" accept=".csv" style="display: none;">
+                        <button onclick="document.getElementById('time-upload').click()" class="btn-csv">Select CSV File</button>
+                        <div id="time-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                    </div>
+                </div>
+            </li>
+        
+            <!-- Second Tab -->
+            <li>
+                <input type="radio" name="tabs" id="tab3" value="via" />
+                <label for="tab3" 
+                    role="tab" 
+                    aria-selected="true" 
+                    aria-controls="panel3" 
+                    tabindex="0" class="tab-label">Spatial-Temporal</label>
+                <div id="tab-content3" 
+                    class="tab-content" 
+                    role="tabpanel" 
+                    aria-labelledby="description" 
+                    aria-hidden="false">
+                <div class = "centered-container">
+
+                    <div class="pref-container7">
+                        <p>STAVIA offers seamless strategies to integrate spatial coordinates and temporal information 
+                            (or other sequential metadata) to guide the cartography in a data-driven manner </p>
+                    </div>
+
+                    <div class="vertical-line"></div>
+
+                    <div class="pref-container4">
+                        <h3>File Upload for spatial_coords</h3>
+                        <p>Default is adata.obsm['X_pca']</p>
+                        <p>Upload .csv file, n_cells x 2 (x and y coordinates of each cells): </p>
+                        <input type="file" id="coords-upload" accept=".csv" style="display: none;">
+                        <button onclick="document.getElementById('coords-upload').click()" class="btn-csv">Select CSV File</button>
+                        <div id="coords-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                    </div>
+                </div>
+            </li>
+
+            <!-- Third Tab -->
+            <li>
+                <input type="radio" name="tabs" id="tab2" value="velocity"/>
+                <label for="tab2"
+                    role="tab" 
+                    aria-selected="false" 
+                    aria-controls="panel2" 
+                    tabindex="0" class="tab-label">RNA Velocity</label>
+                <div id="tab-content2" 
+                    class="tab-content"
+                    role="tabpanel" 
+                    aria-labelledby="specification" 
+                    aria-hidden="true">
+                    <div class = "centered-container">
+                        <div class="pref-container4">
+                        <h3>Variable Input</h3>
+                        <p>Enter the gene to be plotted for expression level: </p>
+                        <div class="form-group">
+                            <span class="popup" data-popup-id="edge-popup">
+                                <span>var_names</span>
+                                <span class="popuptext" id="edge-popup">
+                                    Name of the gene to be plotted. If the input is None, the choice of gene will be random. 
+                                </span>
+                            </span>
+                            <input class="form-field" type="text" placeholder="None" name="var_names" value="None" id="var_names_input">
+                        </div>
+
+                            <p>File upload for user (Optional): </p>
+                            <div class="coll">
+                                <div class="coll-child">
+                                    <span class="popup" data-popup-id="velo-popup">
+                                        <span class="head">velocity_matrix</span>
+                                        <span class="popuptext" id="velo-popup">
+                                            The velocity matrix uploaded by the user, or computed by scVelo (or similar package) and stored in adata.layers[‘velocity’].
+                                            Requires gene_matrix to be provided too.
+                                        </span>
+                                    </span>
+                                    <input type="file" id="velocity-matrix-upload" accept=".csv" style="display: none;">
+                                    <button onclick="document.getElementById('velocity-matrix-upload').click()" class="btn-csv">Select CSV File</button>
+                                    <div id="csv-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                                </div>
+
+                                <div class="coll-child">
+                                    <span class="popup" data-popup-id="gene-popup">
+                                        <span class="head">gene_matrix</span>
+                                        <span class="popuptext" id="gene-popup">
+                                            Only used if Velocity_matrix is available. matrix of size [n_samples x n_genes]. 
+                                            Recommended to use a subset like HVGs rather than full set of genes. Require to densify 
+                                            input if taking from adata = adata.X.todense()
+                                        </span>
+                                    </span>
+                                    <input type="file" id="gene-matrix-upload" accept=".csv" style="display: none;">
+                                    <button onclick="document.getElementById('gene-matrix-upload').click()" class="btn-csv">Select CSV File</button>
+                                    <div id="csv-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                                </div>
+                            </div>
+                        <h3>Adjust the preferred value of DPI</h3>
+                            <ul id="filter1" class="filter-switch">
+                                <li class="filter-switch-item">
+                                    <input type="radio" name="dpi-option" id="dpi-low" class="sr-only" value="80" checked>
+                                    <label for="dpi-low" class="dpi">Low (80dpi)</label>
+                                </li>
+                                <li class="filter-switch-item">
+                                    <input type="radio" name="dpi-option" id="dpi-medium" value="120" class="sr-only">
+                                    <label for="dpi-medium" class="dpi">Medium (120dpi)</label>
+                                </li>
+                                <li class="filter-switch-item">
+                                    <input type="radio" name="dpi-option" id="dpi-high" value="300" class="sr-only">
+                                    <label for="dpi-high" class="dpi">High (300dpi)</label>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </li>
+        </ul>
+
+        <!-- Analyze Button -->
+        <button id="analyzeBtn" class="btn-analyze">
+            <i class="fas fa-play"></i> Run VIA Analysis
+        </button>
+
+    </div>
+
+    <div class="pref-container2">
+        <div id="result"></div>
+    </div>
+
+    <!-- Plot display -->
+    <div class="all-content">
+        <div class="all-heading">
+            <i class="fa-solid fa-square-poll-vertical"></i>
+            <h2>Results</h2>
+            <div class="trailing-line"></div>
+        </div>
+        <div class="all2">
+            <div class="pref-container6">
+                <div class="slider">
+                    <div class="slides">
+
+                        <div id="atlas-container" style="display: none;">
+                            <img id="atlas-plot" style="max-width: 100%; display: none;">
+                        </div> 
+
+                        <div id="via-container" style="display: none;">
+                            <img id="via-plot" style="max-width: 100%; display: none;">
+                        </div>  
+                        
+                        <div id="line-container" style="display: none;">
+                            <img id="line-plot" style="max-width: 100%; display: none;">
+                        </div>  
+
+                        <!-- RNA Velocity -->
+
+                        <div id="per-container" style="display: none;">
+                            <img id="per-plot" style="max-width: 100%; display: none;">
+                        </div> 
+
+                        <div id="em-container" style="display: none;">
+                            <img id="em-plot" style="max-width: 100%; display: none;">
+                        </div>  
+
+                        <div id="grid-container" style="display: none;">
+                            <img id="grid-plot" style="max-width: 100%; display: none;">
+                        </div> 
+                        
+                        <div id="stream-container" style="display: none;">
+                            <img id="stream-plot" style="max-width: 100%; display: none;">
+                        </div> 
+
+                        <div id="vel-container" style="display: none;">
+                            <img id="vel-plot" style="max-width: 100%; display: none;">
+                        </div> 
+
+                        <div id="cl-container" style="display: none;">
+                            <img id="cl-plot" style="max-width: 100%; display: none;">
+                        </div> 
+
+                        <!-- Spatial-Temporal -->
+
+                        <div id="mds-container" style="display: none;">
+                            <img id="mds-plot" style="max-width: 100%; display: none;">
+                        </div> 
+
+                    </div> 
+                </div>
+            </div>
+        </div>
+
+        
+    </div>
+
+    <!-- Additional Plots -->
+    <div class="all-content">
+        <div class="all-heading">
+            <i class="fa-solid fa-chart-area"></i>
+            <h2>Additional Plots</h2>
+            <div class="trailing-line"></div>
+        </div>
+        <div class="all3">
+            <div class = "pref-container">
+                    
+                    <h3>Lineage Probability</h3>
+                    <div class="form-group">
+                        <span class="popup" data-popup-id="lineage-popup">
+                            <span>marker_lineages</span>
+                            <span class="popuptext" id="lineage-popup">
+                                Default is to use all lineage pathways; otherwise, provide a list of lineage number (terminal cluster number)
+                            </span>
+                        </span>
+                        <input class="form-field" type="text" placeholder="All" name="lineages" value="All" id="lineages">
+                    </div>
+
+                    <h3>Gene Expression</h3>
+                    <div class="form-group">
+                        <span class="popup" data-popup-id="genes-popup">
+                            <span>genes_selected</span>
+                            <span class="popuptext" id="genes-popup">
+                                Genes for viewing gene trend heatmaps and differential expressions.
+                                Default is None, meaning that the genes are randomly selected. 
+                            </span>
+                        </span>
+                        <input class="form-field" type="text" placeholder="None" name="genes" value="None" id="genes">
+                    </div>
+
+                    
+                    <button id="plot-btn" class="btn-update">
+                        <i class="fas fa-sync-alt"></i>
+                        <span id="btn-text">View More Plots</span>
+                    </button>
+            </div>
+
+            <div class="pref-container5">
+                <div class="slider">
+                    <div class="slides">
+                        <div id="lineage-container" style="display: none;">
+                            <img id="lineage-plot" style="max-width: 100%; display: none;">
+                        </div> 
+                        
+                        <div id="heat-container" style="display: none;">
+                            <img id="heat-plot" style="max-width: 100%; display: none;">
+                        </div> 
+                        
+                        <div id="exp-container" style="display: none;">
+                            <img id="exp-plot" style="max-width: 100%; display: none;">
+                        </div> 
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button id="downloadAllBtn" style="display: none; margin-top: 20px; margin-bottom: 60px" class="btn-download">
+            <i class="fas fa-download"></i> Download All Plots
+        </button>
+    </div>
+
+
+    <div class="all-content">
+        <div class="all-heading">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <h2>Save Parameters</h2>
+            <div class="trailing-line"></div>
+        </div>
+        <table>
+            <tr>
+                <th>Task</th>
+                <th>Date</th>
+                <th>Parameters</th>
+                <th>Actions</th>
+            </tr>
+            {% for task in tasks %}
+                <tr>
+                    <td>{{ task.content }}</td>
+                    <td>{{ task.date_created.date() }}</td>
+                    <td>
+                        <div class="box">
+                            <a class="show-params" href="#popup-{{task.id}}">Show Parameters</a>
+                        </div>
+
+                        <div id="popup-{{task.id}}" class="overlay">
+                            <div class="popping">
+                                <h2>{{ task.content }}</h2>
+                                <div class="json-parameters">
+                                    <pre>{{ task.parameters | format_params | safe }}</pre>
+                                </div>
+                                <a class="close" href="#">&times;</a>
+                            </div>
+                        </div>
+                    <td>
+                        <a href="/delete/{{task.id}}">Delete</a>
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+
+        <form id="logging">
+            <input type="text" name="content" id="content" placeholder="Task name e.g. test1">
+            <button type="button" id="submit_parameters" style="background: #333">Save Parameters</button>
+        </form>
+    </div>
+
+    </div>
+    
+    <footer>
+            <!-- Grid container -->
+            <div class="footer-content">
+                <!-- Section: Links -->
+                <section>
+                    <div class="footer-grid">
+
+                        <div class="footer-column">
+                            <img src="https://academicminute.org/wp-content/uploads/2014/07/hku_logo_1d-906x1024.png">
+                        </div>
+
+                        <div class="mobile-divider"></div>
+
+                        <!-- Grid column -->
+                        <div class="footer-column">
+                            <h6 class="footer-headingmain">StaVia</h6>
+                            <p>
+                                Spatially and Temporally Aware Cartography with 
+                                Higher-Order Random Walks for Cell Atlases
+                            </p>
+                            <a class="banner-button">Register Now</a>
+                        </div>
+
+                        <div class="mobile-divider"></div>
+
+                        <!-- Grid column -->
+                        <div class="footer-column">
+                            <h6 class="footer-heading">Quick Links</h6>
+                            <p>
+                                <a class="footer-link">Home Page</a>
+                            </p>
+                            <p>
+                                <a class="footer-link">Tutorial</a>
+                            </p>
+                            <p>
+                                <a class="footer-link">Action</a>
+                            </p>
+                            <p>
+                                <a class="footer-link">About Us</a>
+                            </p>
+                        </div>
+                        <!-- Grid column -->
+
+                        <div class="mobile-divider"></div>
+
+                        <!-- Grid column -->
+                        <div class="footer-column">
+                            <h6 class="footer-heading">Contact</h6>
+                            <p class="contact-info">
+                                <i class="fas fa-home contact-icon"></i> The University of Hong Kong, Pokfulam, Hong Kong
+                            </p>
+                            <p class="contact-info">
+                                <i class="fas fa-envelope contact-icon"></i> (email)
+                            </p>
+                            <p class="contact-info">
+                                <i class="fas fa-phone contact-icon"></i> (phone number)
+                            </p>
+                        </div>
+                        <!-- Grid column -->
+
+                        <div class="mobile-divider"></div>
+
+                        <!-- Grid column -->
+                        <div class="footer-column">
+                            <h6 class="footer-heading">Follow us</h6>
+
+                            <div class="social-buttons">
+                                <!-- Facebook -->
+                                <a
+                                   class="social-btn"
+                                   style="background-color: #000"
+                                   href="#!"
+                                   role="button"
+                                   ><i class="fab fa-facebook-f"></i
+                                  ></a>
+
+                                <!-- Twitter -->
+                                <a
+                                   class="social-btn"
+                                   style="background-color: #000"
+                                   href="#!"
+                                   role="button"
+                                   ><i class="fab fa-twitter"></i
+                                  ></a>
+
+                                <!-- Google -->
+                                <a
+                                   class="social-btn"
+                                   style="background-color: #000"
+                                   href="#!"
+                                   role="button"
+                                   ><i class="fab fa-google"></i
+                                  ></a>
+
+                                <!-- Instagram -->
+                                <a
+                                   class="social-btn"
+                                   style="background-color: #000"
+                                   href="#!"
+                                   role="button"
+                                   ><i class="fab fa-instagram"></i
+                                  ></a>
+
+                                <!-- Linkedin -->
+                                <a
+                                   class="social-btn"
+                                   style="background-color: #000"
+                                   href="#!"
+                                   role="button"
+                                   ><i class="fab fa-linkedin-in"></i
+                                  ></a>
+                                <!-- Github -->
+                                <a
+                                   class="social-btn"
+                                   style="background-color: #000"
+                                   href="#!"
+                                   role="button"
+                                   ><i class="fab fa-github"></i
+                                  ></a>
+                            </div>
+                        </div>
+                    </div>
+                    <!--Grid row-->
+                </section>
+                <!-- Section: Links -->
+            </div>
+            <!-- Grid container -->
+
+            <!-- Copyright -->
+            <div class="copyright">
+                © 2024 Copyright:
+                <a href="https://pyvia.readthedocs.io/en/latest/pyVia-home.html">StaVia</a>
+            </div>
+            <!-- Copyright -->
+    </footer>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+    
+    const fileInputH5ad = document.getElementById('fileInputH5ad');
+    const fileInputMtx = document.getElementById('fileInputMtx');
+    const fileInputBarcodes = document.getElementById('fileInputBarcodes');
+    const fileInputGenes = document.getElementById('fileInputGenes');
+    
+    
+    const dropAreaH5ad = document.getElementById('dropAreaH5ad');
+    const dropAreaMtx = document.getElementById('dropAreaMtx');
+    const dropAreaBarcodes = document.getElementById('dropAreaBarcodes');
+    const dropAreaGenes = document.getElementById('dropAreaGenes');
+    
+    
+    const uploadValidation = document.getElementById('upload-validation');
+    
+    
+    [dropAreaH5ad, dropAreaMtx, dropAreaBarcodes, dropAreaGenes].forEach(area => {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            area.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            area.addEventListener(eventName, () => highlight(area), false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            area.addEventListener(eventName, () => unhighlight(area), false);
+        });
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    function highlight(element) {
+        element.classList.add('highlight');
+    }
+    
+    function unhighlight(element) {
+        element.classList.remove('highlight');
+    }
+    
+    // CHANGE TO A MORE MODERN SYNTAX LATER
+    dropAreaH5ad.addEventListener('drop', function(e) {
+        const files = e.dataTransfer.files;
+        if (files.length) {
+            fileInputH5ad.files = files;
+            updateFileStatus('h5ad', files[0]);
+            clear10xInputs();
+            handleFileSelection();
+        }
+    });
+    
+    dropAreaMtx.addEventListener('drop', function(e) {
+        const files = e.dataTransfer.files;
+        if (files.length) {
+            fileInputMtx.files = files;
+            updateFileStatus('mtx', files[0]);
+            clearH5adInput();
+            check10xUpload();
+        }
+    });
+    
+    dropAreaBarcodes.addEventListener('drop', function(e) {
+        const files = e.dataTransfer.files;
+        if (files.length) {
+            fileInputBarcodes.files = files;
+            updateFileStatus('barcodes', files[0]);
+            clearH5adInput();
+            check10xUpload();
+        }
+    });
+    
+    dropAreaGenes.addEventListener('drop', function(e) {
+        const files = e.dataTransfer.files;
+        if (files.length) {
+            fileInputGenes.files = files;
+            updateFileStatus('genes', files[0]);
+            clearH5adInput();
+            check10xUpload();
+        }
+    });
+    
+    // Can use e.target.files[0]
+    fileInputH5ad.addEventListener('change', function() {
+        updateFileStatus('h5ad', this.files[0]);
+        clear10xInputs();
+        handleFileSelection();
+    });
+    
+    fileInputMtx.addEventListener('change', function() {
+        updateFileStatus('mtx', this.files[0]);
+        clearH5adInput();
+        check10xUpload();
+    });
+    
+    fileInputBarcodes.addEventListener('change', function() {
+        updateFileStatus('barcodes', this.files[0]);
+        clearH5adInput();
+        check10xUpload();
+    });
+    
+    fileInputGenes.addEventListener('change', function() {
+        updateFileStatus('genes', this.files[0]);
+        clearH5adInput();
+        check10xUpload();
+    });
+
+    document.querySelectorAll('pre').forEach(pre => {
+    try {
+      const data = JSON.parse(pre.textContent);
+      pre.innerHTML = syntaxHighlight(JSON.stringify(data, null, 2));
+    } catch(e) {
+
+    }
+  });
+
+    function updateFileStatus(type, file) {
+        const statusElement = document.getElementById(`${type}-status`);
+        statusElement.textContent = file ? file.name : 'No file selected';
+        statusElement.style.color = file ? 'green' : '#666';
+    }
+    
+    function clearH5adInput() {
+        fileInputH5ad.value = '';
+        updateFileStatus('h5ad', null);
+    }
+    
+    function clear10xInputs() {
+        fileInputMtx.value = '';
+        fileInputBarcodes.value = '';
+        fileInputGenes.value = '';
+        updateFileStatus('mtx', null);
+        updateFileStatus('barcodes', null);
+        updateFileStatus('genes', null);
+    }
+    
+    function check10xUpload() {
+        const mtxFile = fileInputMtx.files[0];
+        const barcodesFile = fileInputBarcodes.files[0];
+        const genesFile = fileInputGenes.files[0];
+        
+        if (mtxFile && barcodesFile && genesFile) {
+            handleFileSelection();
+        }
+    }
+    
+    function handleFileSelection() {
+        uploadValidation.textContent = 'Uploading files...';
+        uploadValidation.style.color = 'blue';
+        
+        uploadFiles()
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                document.getElementById('updatePreviewBtn').disabled = false;
+                uploadValidation.textContent = 'Files uploaded successfully! Click "Update Preview" to view embeddings.';
+                uploadValidation.style.color = 'green';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                uploadValidation.textContent = `Upload failed: ${error.message}`;
+                uploadValidation.style.color = 'red';
+            });
+    }
+    
+    function uploadFiles() {
+        console.log("Starting uploadFiles function");
+
+        const formData = new FormData();
+        const h5adFile = fileInputH5ad.files[0];
+        const mtxFile = fileInputMtx.files[0];
+        const barcodesFile = fileInputBarcodes.files[0];
+        const genesFile = fileInputGenes.files[0];
+
+        console.log("Files selected:", { 
+        h5adFile: h5adFile?.name,
+        mtxFile: mtxFile?.name, 
+        barcodesFile: barcodesFile?.name,
+        genesFile: genesFile?.name
+        });
+
+        
+        if (h5adFile) {
+            formData.append('file', h5adFile);
+        } 
+        else if (mtxFile && barcodesFile && genesFile) {
+            console.log("10X files detected, preparing upload");
+            formData.append('matrix', mtxFile);
+            formData.append('barcodes', barcodesFile);
+            formData.append('genes', genesFile);
+        }
+        else {
+            console.error("Incomplete file selection");
+            return Promise.reject(new Error('Please upload either:\n1. A single .h5ad file OR\n2. All three 10X Genomics files'));
+        }
+
+        console.log("FormData contents:"); 
+        for (let [key, value] of formData.entries()) {
+            console.log(key, value.name || value);
+        }
+        
+        return fetch('/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            console.log("Received response, status:", response.status); 
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.error || 'Upload failed');
+                });
+            }
+            return response.json();
+        });
+    }
+    
+    document.getElementById('submit_parameters').addEventListener('click', async function() {
+        // SPLIT SOME PARAMETERS INTO LISTS LATER   
+        const params = {
+            'par-option': Array.from(document.querySelectorAll('input[name="par-option"]:checked')).map(el => el.value),
+            var_names: document.getElementById('var_names_input').value || null,
+            time_series_labels: document.getElementById('time_series_labels').value || null,
+            true_label: document.getElementById('true_label_input').value || null,
+            knn: document.querySelector('input[name="knn"]').value,
+            cluster_graph_pruning: document.querySelector('input[name="cluster_graph_pruning"]').value,
+            edgebundle_pruning: document.querySelector('input[name="edgebundle_pruning"]').value,
+            edgepruning_clustering_resolution: document.querySelector('input[name="edgepruning_clustering_resolution"]').value,
+            root_user: document.getElementById('root_user_input').value || null,
+            obs: document.getElementById('obs_input').value || null,
+            dpi: document.querySelector('input[name="dpi-option"]:checked').value
+        };
+
+        const taskContent = document.getElementById('content').value;
+
+        console.log("Submitting:", { content: taskContent, parameters: params });
+
+        try {
+            const response = await fetch('/add_info', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    content: taskContent,
+                    parameters: params
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            const result = await response.json();
+            console.log("Success:", result);
+            window.location.reload(); 
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to save parameters');
+        }
+    });
+
+    document.getElementById('updatePreviewBtn').addEventListener('click', function() {
+        updatePreview();
+    });
+
+    document.getElementById('analyzeBtn').addEventListener('click', function() {
+
+        const params = {
+            
+            'par-option': Array.from(document.querySelectorAll('input[name="par-option"]:checked')).map(el => el.value),
+            var_names: document.getElementById('var_names_input').value || null,
+            time_series_labels: document.getElementById('time_series_labels').value || null,
+            true_label: document.getElementById('true_label_input').value || null,
+            knn: document.querySelector('input[name="knn"]').value,
+            cluster_graph_pruning: document.querySelector('input[name="cluster_graph_pruning"]').value,
+            edgebundle_pruning: document.querySelector('input[name="edgebundle_pruning"]').value,
+            edgepruning_clustering_resolution: document.querySelector('input[name="edgepruning_clustering_resolution"]').value,
+            root_user: document.getElementById('root_user_input').value || null,
+            obs: document.getElementById('obs_input').value || null,
+            dpi: document.querySelector('input[name="dpi-option"]:checked').value
+        };
+
+        const formData = new FormData();
+        
+        for (const key in params) {
+            if (params[key] !== null) {
+                if (Array.isArray(params[key])) {
+                    params[key].forEach(val => formData.append(key, val));
+                } else {
+                    formData.append(key, params[key]);
+                }
+            }
+        }
+        
+        const optionalFiles = [
+            'time-upload', 
+            'velocity-matrix-upload', 
+            'gene-matrix-upload', 
+            'root-upload',
+            'csv-upload',
+            'coords-upload'
+        ];
+        
+        optionalFiles.forEach(fileId => {
+            const fileInput = document.getElementById(fileId);
+            if (fileInput.files[0]) {
+                formData.append(fileId, fileInput.files[0]);
+            }
+        });
+
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+        analyzeBtn.disabled = true;
+
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = '';
+        resultDiv.style.display = 'none';
+
+        const analysisContainers = [
+            'atlas', 'via', 'line', 'per', 'em', 
+            'grid', 'stream', 'vel', 'cl', 'mds'
+        ];
+        analysisContainers.forEach(plotType => {
+            const container = document.getElementById(`${plotType}-container`);
+            const img = document.getElementById(`${plotType}-plot`);
+            if (container) container.style.display = 'none';
+            if (img) img.style.display = 'none';
+        });
+
+        fetch('/analyze', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) throw new Error(data.error);
+            
+            resultDiv.innerHTML = '<i class="fas fa-check-circle" style="color: green;"></i> Analysis completed successfully!';
+            resultDiv.style.color = 'black';
+            resultDiv.style.display = 'block';
+
+            if (data.plots) {
+                for (const [plotType, plotData] of Object.entries(data.plots)) {
+                    const container = document.getElementById(`${plotType}-container`);
+                    const img = document.getElementById(`${plotType}-plot`);
+                    
+                    if (container && img && plotData) {
+                        img.src = plotData;
+                        img.style.display = 'block';
+                        container.style.display = 'block';
+                        console.log(`Displayed ${plotType} plot`);
+                    }
+                }
+            }
+
+            document.getElementById('downloadAllBtn').style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            resultDiv.textContent = `Error: ${error.message}`;
+            resultDiv.style.color = 'red';
+            resultDiv.style.display = 'block';
+        })
+        .finally(() => {
+            analyzeBtn.innerHTML = '<i class="fas fa-play"></i> Run VIA Analysis';
+            analyzeBtn.disabled = false;
+        });
+    });
+
+    document.getElementById('downloadAllBtn').addEventListener('click', function() {
+        const allPlotData = {};
+
+        const analysisPlotTypes = [
+            'atlas', 'via', 'line', 'per', 'em', 
+            'grid', 'stream', 'vel', 'cl', 'mds',
+            'pca', 'umap', 'phate', 'lineage', 'heat', 'exp'
+        ];
+
+        analysisPlotTypes.forEach(plotType => {
+            const img = document.getElementById(`${plotType}-plot`);
+            if (img && img.src && img.src.startsWith('data:image/png;base64,')) {
+                allPlotData[`analysis_${plotType}`] = img.src;
+            }
+        });
+
+        if (Object.keys(allPlotData).length === 0) {
+            alert('No plots available to download');
+            return;
+        }
+
+        const downloadBtn = document.getElementById('downloadAllBtn');
+        downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing download...';
+        downloadBtn.disabled = true;
+
+        fetch('/download_all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(allPlotData)
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to prepare download');
+            return response.blob();
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'all_plots.zip';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        })
+        .catch(error => {
+            console.error('Download error:', error);
+            alert('Download failed: ' + error.message);
+        })
+        .finally(() => {
+            downloadBtn.innerHTML = '<i class="fas fa-download"></i> Download All Plots';
+            downloadBtn.disabled = false;
+        });
+    });
+
+    function submitPlotPreferences() {
+        const button = document.getElementById('plot-btn');
+        const icon = button.querySelector('i');
+        const textSpan = document.getElementById('btn-text');
+            
+        button.disabled = true;
+        icon.className = 'fas fa-spinner fa-spin';  
+        textSpan.textContent = ' Generating...'
+
+        const lineagesInput = document.getElementById('lineages').value;
+        const genesInput = document.getElementById('genes').value;
+
+        const postData = {
+            marker_lineages: lineagesInput === 'All' ? null : lineagesInput.split(',').map(item => item.trim()),
+            genes_selected: genesInput === 'None' ? null : genesInput.split(',').map(item => item.trim())
+        };
+
+        fetch('/add_plots', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(postData)
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            console.log('API Response:', data);  
+            
+            if (!data.plots) {
+                throw new Error('No plots data received');
+            }
+
+            if (data.plots?.heat) {
+                document.getElementById('heat-plot').src = data.plots.heat;
+                document.getElementById('heat-plot').style.display = 'block';
+                document.getElementById('heat-container').style.display = 'block';
+            } else {
+                document.getElementById('heat-container').style.display = 'none';
+            }
+            
+            if (data.plots?.lineage) {
+                document.getElementById('lineage-plot').src = data.plots.lineage;
+                document.getElementById('lineage-plot').style.display = 'block';
+                document.getElementById('lineage-container').style.display = 'block';
+            } else {
+                document.getElementById('lineage-container').style.display = 'none';
+            }
+
+            if (data.plots?.exp) {
+                document.getElementById('exp-plot').src = data.plots.exp;
+                document.getElementById('exp-plot').style.display = 'block';
+                document.getElementById('exp-container').style.display = 'block';
+            } else {
+                document.getElementById('exp-container').style.display = 'none';
+            }
+
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error generating plots: ' + error.message);
+        })
+        .finally(() => {
+            button.disabled = false;
+            icon.className = 'fas fa-sync-alt';     
+            textSpan.textContent = ' View More Plots';
+        });
+    }
+
+    function updatePlotVisibility(plotType, plotData) {
+        const container = document.getElementById(`${plotType}-container`);
+        const plot = document.getElementById(`${plotType}-plot`);
+        
+        if (plotData) {
+            plot.src = plotData;
+            plot.style.display = 'block';
+            container.style.display = 'block';
+        } else {
+            container.style.display = 'none';
+        }
+    }
+
+    document.getElementById('plot-btn').addEventListener('click', function(e) {
+        e.preventDefault();
+        submitPlotPreferences();
+    });
+
+    function updatePreview() {
+        const embeddingChoices = [];
+        document.querySelectorAll('input[name="em-option"]:checked').forEach(checkbox => {
+            embeddingChoices.push(checkbox.value);
+        });
+
+        const colorBy = document.getElementById('color_umap').value || 'cluster';
+        const colorScheme = document.getElementById('color-select').value || 'viridis';
+        
+        const previewBtn = document.getElementById('updatePreviewBtn');
+        previewBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Computing...';
+        previewBtn.disabled = true;
+        
+        const resultDiv = document.getElementById('result');
+        resultDiv.textContent = '';
+        resultDiv.style.display = 'none';
+        
+        fetch('/preview', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `em=${embeddingChoices.join('&em=')}&color_umap=${encodeURIComponent(colorBy)}&color_scheme=${encodeURIComponent(colorScheme)}`
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.error || 'Failed to generate preview');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("Preview response data:", data);
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            displayPreview(data);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            resultDiv.textContent = `Error: ${error.message}`;
+            resultDiv.style.color = 'red';
+            resultDiv.style.display = 'block';
+        })
+        .finally(() => {
+            previewBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Update Preview';
+            previewBtn.disabled = false;
+        });
+    }
+
+    function displayPreview(data) {
+        const anndataDiv = document.querySelector('.anndata');
+        anndataDiv.innerHTML = ''; 
+        
+        if (data.adata_info) {
+            const info = data.adata_info;
+            
+            const infoContainer = document.createElement('div');
+            infoContainer.style.fontFamily = 'monospace';
+            infoContainer.style.padding = '15px';
+            infoContainer.style.backgroundColor = '#f5f5f5';
+            infoContainer.style.borderRadius = '5px';
+            infoContainer.style.margin = '20px 0';
+            infoContainer.style.overflowX = 'auto';
+
+            const dimensions = document.createElement('div');
+            dimensions.textContent = `Dimensions: ${info.dimensions}`;
+            dimensions.style.marginBottom = '10px';
+            dimensions.style.fontWeight = 'bold';
+            infoContainer.appendChild(dimensions);
+            
+            const obsHeader = document.createElement('div');
+            obsHeader.textContent = 'Observations (.obs):';
+            obsHeader.style.fontWeight = 'bold';
+            obsHeader.style.marginBottom = '5px';
+            infoContainer.appendChild(obsHeader);
+            
+            const obsKeys = document.createElement('div');
+            obsKeys.textContent = info.obs_keys.join(', ');
+            obsKeys.style.marginBottom = '10px';
+            infoContainer.appendChild(obsKeys);
+
+            const varHeader = document.createElement('div');
+            varHeader.textContent = 'Variables (.var):';
+            varHeader.style.fontWeight = 'bold';
+            varHeader.style.marginBottom = '5px';
+            infoContainer.appendChild(varHeader);
+            
+            const varKeys = document.createElement('div');
+            varKeys.textContent = info.var_keys.join(', ');
+            varKeys.style.marginBottom = '10px';
+            infoContainer.appendChild(varKeys);
+
+            if (info.layers && info.layers.length > 0) {
+                const layersHeader = document.createElement('div');
+                layersHeader.textContent = 'Layers:';
+                layersHeader.style.fontWeight = 'bold';
+                layersHeader.style.marginBottom = '5px';
+                infoContainer.appendChild(layersHeader);
+                
+                const layersList = document.createElement('div');
+                layersList.textContent = info.layers.join(', ');
+                layersList.style.marginBottom = '10px';
+                infoContainer.appendChild(layersList);
+            }
+
+            if (info.uns_keys && info.uns_keys.length > 0) {
+                const unsHeader = document.createElement('div');
+                unsHeader.textContent = 'Unstructured Data (.uns):';
+                unsHeader.style.fontWeight = 'bold';
+                unsHeader.style.marginBottom = '5px';
+                infoContainer.appendChild(unsHeader);
+                
+                const unsList = document.createElement('div');
+                unsList.textContent = info.uns_keys.join(', ');
+                unsList.style.marginBottom = '10px';
+                infoContainer.appendChild(unsList);
+            }
+
+            if (info.obsm_keys && info.obsm_keys.length > 0) {
+                const unsHeader = document.createElement('div');
+                unsHeader.textContent = 'Cell Embeddings (.obsm):';
+                unsHeader.style.fontWeight = 'bold';
+                unsHeader.style.marginBottom = '5px';
+                infoContainer.appendChild(unsHeader);
+                
+                const unsList = document.createElement('div');
+                unsList.textContent = info.obsm_keys.join(', ');
+                unsList.style.marginBottom = '10px';
+                infoContainer.appendChild(unsList);
+            }
+
+            if (info.varm_keys && info.varm_keys.length > 0) {
+                const unsHeader = document.createElement('div');
+                unsHeader.textContent = 'Gene Embeddings (.varm):';
+                unsHeader.style.fontWeight = 'bold';
+                unsHeader.style.marginBottom = '5px';
+                infoContainer.appendChild(unsHeader);
+                
+                const unsList = document.createElement('div');
+                unsList.textContent = info.varm_keys.join(', ');
+                unsList.style.marginBottom = '10px';
+                infoContainer.appendChild(unsList);
+            }
+        
+            anndataDiv.appendChild(infoContainer);
+            anndataDiv.style.display = 'block';
+        } else {
+            anndataDiv.style.display = 'none';
+        }
+        
+        if (data.plots?.pca) {
+            document.getElementById('pca-plot').src = data.plots.pca;
+            document.getElementById('pca-plot').style.display = 'block';
+            document.getElementById('pca-container').style.display = 'block';
+        } else {
+            document.getElementById('pca-container').style.display = 'none';
+        }
+        
+        if (data.plots?.umap) {
+            document.getElementById('umap-plot').src = data.plots.umap;
+            document.getElementById('umap-plot').style.display = 'block';
+            document.getElementById('umap-container').style.display = 'block';
+        } else {
+            document.getElementById('umap-container').style.display = 'none';
+        }
+
+        if (data.plots?.phate) {
+            document.getElementById('phate-plot').src = data.plots.phate;
+            document.getElementById('phate-plot').style.display = 'block';
+            document.getElementById('phate-container').style.display = 'block';
+        } else {
+            document.getElementById('phate-container').style.display = 'none';
+        }
+    }
+});
+</script>
+
+</body>
+
+</html>
+
+

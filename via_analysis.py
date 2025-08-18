@@ -178,7 +178,7 @@ def run_via_analysis(adata, params, file_data = None):
             spatial_weight = 0
     
         print('RUN VIA')
-        v0 = via.VIA(adata.obsm['X_pca'][:,:ncomp], true_label = adata.obs[adata_obs], memory = memory,
+        v0 = via.VIA(adata.obsm['X_pca'][:,:ncomp], true_label = true_label, memory = memory,
                     edgepruning_clustering_resolution=edgepruning_clustering_resolution, 
                     edgepruning_clustering_resolution_local=1, knn=knn,
                     too_big_factor=too_big_factor, root_user=root_user,
@@ -204,4 +204,5 @@ def run_via_analysis(adata, params, file_data = None):
         return results
     
     except Exception as e:
+
         return {'error': str(e)}

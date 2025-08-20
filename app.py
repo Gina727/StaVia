@@ -1,9 +1,7 @@
 import pandas as pd
 import scanpy as sc
 from via_analysis import run_via_analysis
-from rna_analysis import run_rna_velocity
 from plotting import via_plot, more_plot
-import pyVIA.core as via
 from flask import Flask, render_template, request, jsonify, send_file, session, url_for, redirect
 from flask_sqlalchemy import SQLAlchemy
 import json
@@ -16,9 +14,7 @@ import shutil
 from datetime import datetime
 import tempfile
 import matplotlib.pyplot as plt
-import phate  
 import umap
-import pprint
 import numpy as np 
 from functools import wraps
 import gc
@@ -27,6 +23,7 @@ from datetime import datetime
 import uuid
 import gzip
 import shutil
+import parc, csv
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
@@ -269,7 +266,7 @@ def preview(adata):
     if color_scheme not in valid:
         color_scheme = 'viridis'
 
-    pca_plot = umap_plot = phate_plot = None
+    pca_plot = umap_plot = parc_plot = None
 
     if 'pca' in choice:
         sc.pl.pca_variance_ratio(adata, log=False, n_pcs=50, show=False)
@@ -286,14 +283,25 @@ def preview(adata):
         plt.close()
         umap_plot = "data:image/png;base64," + base64.b64encode(umap_img.getvalue()).decode('utf-8')
 
-    if 'phate' in choice: 
-        if 'X_phate' in adata.obsm:
-            fig = sc.pl.embedding(adata, basis='phate', color=[color], palette=color_scheme, show=False, return_fig=True)
-            phate_img = BytesIO()
-            fig.savefig(phate_img, format='png', bbox_inches='tight', dpi=120)
-            plt.close(fig)
-            phate_plot = "data:image/png;base64," + base64.b64encode(phate_img.getvalue()).decode('utf-8')
-    
+    if 'parc' in choice: 
+        parc1 = parc.PARC(adata.obsm['X_pca'], jac_std_global=0.15, random_seed =1, small_pop = 50)
+        parc1.run_PARC()
+        parc_labels = parc1.labels
+        adata.obs["PARC"] = pd.Categorical(parc_labels)
+        PREPROCESS_CACHE[session['file_path']] = adata
+
+        sc.settings.n_jobs=4
+        sc.pp.neighbors(adata, n_neighbors=10, n_pcs=40)
+        sc.tl.umap(adata)
+
+        plt.figure(figsize=(8,6))
+        sc.pl.umap(adata, color='PARC')
+        parc_img = BytesIO()
+        plt.savefig(parc_img, format='png', bbox_inches='tight', dpi=120)
+        plt.close('all')
+        parc_plot = "data:image/png;base64," + base64.b64encode(parc_img.getvalue()).decode('utf-8')
+        print(f"PARC plot size: {len(parc_plot)//1024} KB")
+
     preview_data = {
         'adata_info': {
             'dimensions': f"{adata.n_obs} cells × {adata.n_vars} genes",
@@ -307,7 +315,7 @@ def preview(adata):
         'plots': {
             'pca': pca_plot if pca_plot else None,
             'umap': umap_plot if umap_plot else None,
-            'phate': phate_plot if phate_plot else None
+            'parc': parc_plot if parc_plot else None
         },
     }
     
@@ -410,6 +418,4 @@ def download_all():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', use_reloader=False)
-
-
+    app.run(host='0.0.0.0', use_reloader=False, port=10000)

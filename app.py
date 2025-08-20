@@ -23,11 +23,11 @@ from datetime import datetime
 import uuid
 import gzip
 import shutil
-import parc
-import weakref
-from collections import OrderedDict
-import threading
+import parc, csv
+import hashlib, time, logging, pickle
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
@@ -44,42 +44,99 @@ class Todo(db.Model):
         return f'<Task {self.id}>'
     
 UPLOAD_FOLDER = tempfile.mkdtemp()
+CACHE_FOLDER = tempfile.mkdtemp(prefix='via_cache_')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['CACHE_FOLDER'] = CACHE_FOLDER
 
-class LRUCache:
-    def __init__(self, max_size=5):
-        self.cache = OrderedDict()
-        self.max_size = max_size
-        self.lock = threading.RLock()
+class DiskCache:
+    def __init__(self, cache_dir, max_size_mb=100, max_age_hours=24):
+        self.cache_dir = cache_dir
+        self.max_size_mb = max_size_mb
+        self.max_age_seconds = max_age_hours * 3600
+        os.makedirs(cache_dir, exist_ok=True)
         
+    def _get_cache_path(self, key):
+        # Create a hash of the key for filename
+        key_hash = hashlib.md5(key.encode()).hexdigest()
+        return os.path.join(self.cache_dir, f"{key_hash}.pkl")
+    
+    def _cleanup_old_files(self):
+        """Remove old files if cache exceeds size limit"""
+        try:
+            files = []
+            total_size = 0
+            
+            for filename in os.listdir(self.cache_dir):
+                if filename.endswith('.pkl'):
+                    filepath = os.path.join(self.cache_dir, filename)
+                    stat = os.stat(filepath)
+                    files.append((filepath, stat.st_mtime, stat.st_size))
+                    total_size += stat.st_size
+            
+            # Convert to MB
+            total_size_mb = total_size / (1024 * 1024)
+
+            if total_size_mb > self.max_size_mb:
+                # Sort by oldest first
+                files.sort(key=lambda x: x[1])
+                for filepath, mtime, size in files:
+                    if total_size_mb <= self.max_size_mb:
+                        break
+                    try:
+                        os.remove(filepath)
+                        total_size_mb -= size / (1024 * 1024)
+                    except:
+                        pass
+
+            current_time = time.time()
+            for filepath, mtime, size in files:
+                if current_time - mtime > self.max_age_seconds:
+                    try:
+                        os.remove(filepath)
+                    except:
+                        pass
+                        
+        except Exception as e:
+            logger.warning(f"Cache cleanup failed: {e}")
+
     def get(self, key):
-        with self.lock:
-            if key not in self.cache:
-                return None
-            self.cache.move_to_end(key)
-            return self.cache[key]
+        cache_path = self._get_cache_path(key)
+        if not os.path.exists(cache_path):
+            return None
+            
+        # Check if file is too old
+        if time.time() - os.path.getmtime(cache_path) > self.max_age_seconds:
+            try:
+                os.remove(cache_path)
+            except:
+                pass
+            return None
+            
+        try:
+            with open(cache_path, 'rb') as f:
+                return pickle.load(f)
+        except:
+            return None
         
     def set(self, key, value):
-        with self.lock:
-            if key in self.cache:
-                self.cache[key] = value
-                self.cache.move_to_end(key)
-            else:
-                if len(self.cache) >= self.max_size:
-                    self.cache.popitem(last=False)
-                self.cache[key] = value
-
+        cache_path = self._get_cache_path(key)
+        try:
+            with open(cache_path, 'wb') as f:
+                pickle.dump(value, f, protocol=pickle.HIGHEST_PROTOCOL)
+            self._cleanup_old_files()
+        except Exception as e:
+            logger.error(f"Failed to cache {key}: {e}")
+    
     def clear(self):
-        with self.lock:
-            self.cache.clear()
-            
-    def __contains__(self, key):
-        with self.lock:
-            return key in self.cache
-            
+        try:
+            for filename in os.listdir(self.cache_dir):
+                if filename.endswith('.pkl'):
+                    os.remove(os.path.join(self.cache_dir, filename))
+        except Exception as e:
+            logger.error(f"Failed to clear cache: {e}")
 
-PREPROCESS_CACHE = LRUCache(max_size=3)
-VIA_CACHE = LRUCache(max_size=2)
+PREPROCESS_CACHE = DiskCache(os.path.join(CACHE_FOLDER, 'preprocess'), max_size_mb=50)
+VIA_CACHE = DiskCache(os.path.join(CACHE_FOLDER, 'via'), max_size_mb=20)
 
 def cleanup():
     try:
@@ -174,17 +231,19 @@ def upload():
         form_data = request.form
         files = request.files
         
-        
-        if 'file' in files: 
+        # Determine upload type
+        if 'file' in files:  # H5AD file
             file = files['file']
             if not file.filename.lower().endswith('.h5ad'):
                 return jsonify({'error': 'Only .h5ad files supported'}), 400
             
+            # Save h5ad file
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'uploaded_data_{unique_id}.h5ad')
             file.save(file_path)
             session['file_type'] = 'h5ad'
             
-        else:  
+        else:  # 10X files
+            
             has_matrix = any(f for f in files if 'matrix' in f.lower())
             has_barcodes = any(f for f in files if 'barcodes' in f.lower())
             has_features = any(f for f in files if 'features' in f.lower() or 'genes' in f.lower())
@@ -193,10 +252,12 @@ def upload():
                 file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'10x_data_{unique_id}')
                 os.makedirs(file_path, exist_ok=True)
 
+                # Find the actual files
                 mtx_file = next(f for f in files.values() if 'matrix' in f.filename.lower())
                 barcodes_file = next(f for f in files.values() if 'barcodes' in f.filename.lower())
                 features_file = next(f for f in files.values() if 'features' in f.filename.lower() or 'gene' in f.filename.lower())
 
+            # Save original files first
             mtx_path = os.path.join(file_path, 'matrix.mtx')
             barcodes_path = os.path.join(file_path, 'barcodes.tsv')
             features_path = os.path.join(file_path, 'features.tsv')
@@ -239,10 +300,12 @@ def cache_preprocessed_data(func):
 
         cached_data = PREPROCESS_CACHE.get(file_path)
         if cached_data is not None:
-            print("Using cached data")
+            logger.info("Using cached preprocessed data")
             return func(cached_data, *args, **kwargs)
-        
+
         try:
+            logger.info(f"Loading {file_type} data from: {file_path}")
+
             if file_type == '10x':
                 print('Loading 10X data from:', file_path)
                 mtx_gz_path = os.path.join(file_path, 'matrix.mtx.gz')
@@ -273,15 +336,18 @@ def cache_preprocessed_data(func):
             if adata.X.shape[0] == 0:
                 raise ValueError("Empty matrix after load")
 
+            if scipy.sparse.issparse(adata.X) and (adata.n_obs * adata.n_vars < 1e7):
+                adata.X = adata.X.toarray()
+
             print('Preprocessing Data')
             sc.pp.filter_cells(adata, min_genes=100)
             sc.pp.filter_genes(adata, min_cells=10)
             sc.pp.normalize_total(adata)
             sc.pp.log1p(adata)
-            sc.pp.pca(adata, n_comps=100)
+            sc.pp.pca(adata, n_comps=50)
 
             PREPROCESS_CACHE.set(file_path, adata)
-            print('Cached preprocessed data')
+            logger.info('Cached preprocessed data to disk')
             return func(adata, *args, **kwargs)
 
         except Exception as e:
@@ -321,6 +387,7 @@ def preview(adata):
         parc1.run_PARC()
         parc_labels = parc1.labels
         adata.obs["PARC"] = pd.Categorical(parc_labels)
+        
         PREPROCESS_CACHE.set(session['file_path'], adata)
 
         sc.settings.n_jobs=4
@@ -397,10 +464,12 @@ def analyze(adata):
             
         v0 = results['via_obj']
 
+        global VIA_CACHE        
         VIA_CACHE.set('via_obj', v0)
 
         plots = via_plot(params=params, v0=v0, file_data=file_data)
         
+        gc.collect()
         return jsonify({'success': True, 'plots': plots})
         
     except Exception as e:
@@ -414,14 +483,13 @@ def add_plots(adata):
         lineages = data.get('marker_lineages', [])  
         genes = data.get('genes_selected') 
         
+        global VIA_CACHE
         v0 = VIA_CACHE.get('via_obj')
         if v0 is None:
             return jsonify({'error': 'VIA object not found. Run analysis first.'}), 400
 
         plots = more_plot(lineages=lineages, genes=genes, adata=adata, v0=v0)
 
-        gc.collect()
-        
         return jsonify({'success': True, 'plots': plots})
     
     except Exception as e:

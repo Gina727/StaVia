@@ -23,7 +23,11 @@ from datetime import datetime
 import uuid
 import gzip
 import shutil
-import parc, csv
+import parc
+import weakref
+from collections import OrderedDict
+import threading
+
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
@@ -41,8 +45,41 @@ class Todo(db.Model):
     
 UPLOAD_FOLDER = tempfile.mkdtemp()
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-PREPROCESS_CACHE = {}
-VIA_CACHE = {}
+
+class LRUCache:
+    def __init__(self, max_size=5):
+        self.cache = OrderedDict()
+        self.max_size = max_size
+        self.lock = threading.RLock()
+        
+    def get(self, key):
+        with self.lock:
+            if key not in self.cache:
+                return None
+            self.cache.move_to_end(key)
+            return self.cache[key]
+        
+    def set(self, key, value):
+        with self.lock:
+            if key in self.cache:
+                self.cache[key] = value
+                self.cache.move_to_end(key)
+            else:
+                if len(self.cache) >= self.max_size:
+                    self.cache.popitem(last=False)
+                self.cache[key] = value
+
+    def clear(self):
+        with self.lock:
+            self.cache.clear()
+            
+    def __contains__(self, key):
+        with self.lock:
+            return key in self.cache
+            
+
+PREPROCESS_CACHE = LRUCache(max_size=3)
+VIA_CACHE = LRUCache(max_size=2)
 
 def cleanup():
     try:
@@ -130,24 +167,24 @@ def upload():
         PREPROCESS_CACHE.clear()
         VIA_CACHE.clear()
         session.clear()
+        gc.collect()
+
         unique_id = str(uuid.uuid4())[:8]
 
         form_data = request.form
         files = request.files
         
-        # Determine upload type
-        if 'file' in files:  # H5AD file
+        
+        if 'file' in files: 
             file = files['file']
             if not file.filename.lower().endswith('.h5ad'):
                 return jsonify({'error': 'Only .h5ad files supported'}), 400
             
-            # Save h5ad file
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'uploaded_data_{unique_id}.h5ad')
             file.save(file_path)
             session['file_type'] = 'h5ad'
             
-        else:  # 10X files
-            
+        else:  
             has_matrix = any(f for f in files if 'matrix' in f.lower())
             has_barcodes = any(f for f in files if 'barcodes' in f.lower())
             has_features = any(f for f in files if 'features' in f.lower() or 'genes' in f.lower())
@@ -156,12 +193,10 @@ def upload():
                 file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'10x_data_{unique_id}')
                 os.makedirs(file_path, exist_ok=True)
 
-                # Find the actual files
                 mtx_file = next(f for f in files.values() if 'matrix' in f.filename.lower())
                 barcodes_file = next(f for f in files.values() if 'barcodes' in f.filename.lower())
                 features_file = next(f for f in files.values() if 'features' in f.filename.lower() or 'gene' in f.filename.lower())
 
-            # Save original files first
             mtx_path = os.path.join(file_path, 'matrix.mtx')
             barcodes_path = os.path.join(file_path, 'barcodes.tsv')
             features_path = os.path.join(file_path, 'features.tsv')
@@ -202,10 +237,11 @@ def cache_preprocessed_data(func):
             print("ERROR: No file_path in session")
             return jsonify({'error': 'No file uploaded'}), 400
 
-        if file_path in PREPROCESS_CACHE:
+        cached_data = PREPROCESS_CACHE.get(file_path)
+        if cached_data is not None:
             print("Using cached data")
-            return func(PREPROCESS_CACHE[file_path], *args, **kwargs)
-
+            return func(cached_data, *args, **kwargs)
+        
         try:
             if file_type == '10x':
                 print('Loading 10X data from:', file_path)
@@ -237,9 +273,6 @@ def cache_preprocessed_data(func):
             if adata.X.shape[0] == 0:
                 raise ValueError("Empty matrix after load")
 
-            if scipy.sparse.issparse(adata.X) and (adata.n_obs * adata.n_vars < 1e7):
-                adata.X = adata.X.toarray()
-
             print('Preprocessing Data')
             sc.pp.filter_cells(adata, min_genes=100)
             sc.pp.filter_genes(adata, min_cells=10)
@@ -247,7 +280,7 @@ def cache_preprocessed_data(func):
             sc.pp.log1p(adata)
             sc.pp.pca(adata, n_comps=100)
 
-            PREPROCESS_CACHE[file_path] = adata
+            PREPROCESS_CACHE.set(file_path, adata)
             print('Cached preprocessed data')
             return func(adata, *args, **kwargs)
 
@@ -288,7 +321,7 @@ def preview(adata):
         parc1.run_PARC()
         parc_labels = parc1.labels
         adata.obs["PARC"] = pd.Categorical(parc_labels)
-        PREPROCESS_CACHE[session['file_path']] = adata
+        PREPROCESS_CACHE.set(session['file_path'], adata)
 
         sc.settings.n_jobs=4
         sc.pp.neighbors(adata, n_neighbors=10, n_pcs=40)
@@ -364,8 +397,7 @@ def analyze(adata):
             
         v0 = results['via_obj']
 
-        global VIA_CACHE        
-        VIA_CACHE['via_obj'] = v0
+        VIA_CACHE.set('via_obj', v0)
 
         plots = via_plot(params=params, v0=v0, file_data=file_data)
         
@@ -382,13 +414,14 @@ def add_plots(adata):
         lineages = data.get('marker_lineages', [])  
         genes = data.get('genes_selected') 
         
-        global VIA_CACHE
         v0 = VIA_CACHE.get('via_obj')
         if v0 is None:
             return jsonify({'error': 'VIA object not found. Run analysis first.'}), 400
 
         plots = more_plot(lineages=lineages, genes=genes, adata=adata, v0=v0)
 
+        gc.collect()
+        
         return jsonify({'success': True, 'plots': plots})
     
     except Exception as e:

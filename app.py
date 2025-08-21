@@ -23,11 +23,7 @@ from datetime import datetime
 import uuid
 import gzip
 import shutil
-import parc, csv
-import hashlib, time, logging, pickle
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+import parc
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
@@ -44,99 +40,10 @@ class Todo(db.Model):
         return f'<Task {self.id}>'
     
 UPLOAD_FOLDER = tempfile.mkdtemp()
-CACHE_FOLDER = tempfile.mkdtemp(prefix='via_cache_')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['CACHE_FOLDER'] = CACHE_FOLDER
-
-class DiskCache:
-    def __init__(self, cache_dir, max_size_mb=100, max_age_hours=24):
-        self.cache_dir = cache_dir
-        self.max_size_mb = max_size_mb
-        self.max_age_seconds = max_age_hours * 3600
-        os.makedirs(cache_dir, exist_ok=True)
-        
-    def _get_cache_path(self, key):
-        # Create a hash of the key for filename
-        key_hash = hashlib.md5(key.encode()).hexdigest()
-        return os.path.join(self.cache_dir, f"{key_hash}.pkl")
-    
-    def _cleanup_old_files(self):
-        """Remove old files if cache exceeds size limit"""
-        try:
-            files = []
-            total_size = 0
-            
-            for filename in os.listdir(self.cache_dir):
-                if filename.endswith('.pkl'):
-                    filepath = os.path.join(self.cache_dir, filename)
-                    stat = os.stat(filepath)
-                    files.append((filepath, stat.st_mtime, stat.st_size))
-                    total_size += stat.st_size
-            
-            # Convert to MB
-            total_size_mb = total_size / (1024 * 1024)
-
-            if total_size_mb > self.max_size_mb:
-                # Sort by oldest first
-                files.sort(key=lambda x: x[1])
-                for filepath, mtime, size in files:
-                    if total_size_mb <= self.max_size_mb:
-                        break
-                    try:
-                        os.remove(filepath)
-                        total_size_mb -= size / (1024 * 1024)
-                    except:
-                        pass
-
-            current_time = time.time()
-            for filepath, mtime, size in files:
-                if current_time - mtime > self.max_age_seconds:
-                    try:
-                        os.remove(filepath)
-                    except:
-                        pass
-                        
-        except Exception as e:
-            logger.warning(f"Cache cleanup failed: {e}")
-
-    def get(self, key):
-        cache_path = self._get_cache_path(key)
-        if not os.path.exists(cache_path):
-            return None
-            
-        # Check if file is too old
-        if time.time() - os.path.getmtime(cache_path) > self.max_age_seconds:
-            try:
-                os.remove(cache_path)
-            except:
-                pass
-            return None
-            
-        try:
-            with open(cache_path, 'rb') as f:
-                return pickle.load(f)
-        except:
-            return None
-        
-    def set(self, key, value):
-        cache_path = self._get_cache_path(key)
-        try:
-            with open(cache_path, 'wb') as f:
-                pickle.dump(value, f, protocol=pickle.HIGHEST_PROTOCOL)
-            self._cleanup_old_files()
-        except Exception as e:
-            logger.error(f"Failed to cache {key}: {e}")
-    
-    def clear(self):
-        try:
-            for filename in os.listdir(self.cache_dir):
-                if filename.endswith('.pkl'):
-                    os.remove(os.path.join(self.cache_dir, filename))
-        except Exception as e:
-            logger.error(f"Failed to clear cache: {e}")
-
-PREPROCESS_CACHE = DiskCache(os.path.join(CACHE_FOLDER, 'preprocess'), max_size_mb=50)
-VIA_CACHE = DiskCache(os.path.join(CACHE_FOLDER, 'via'), max_size_mb=20)
+PREPROCESS_CACHE = {}
+VIA_CACHE = {}
+INITIAL_ADATA_CACHE = {} 
 
 def cleanup():
     try:
@@ -224,14 +131,10 @@ def upload():
         PREPROCESS_CACHE.clear()
         VIA_CACHE.clear()
         session.clear()
-        gc.collect()
-
         unique_id = str(uuid.uuid4())[:8]
 
-        form_data = request.form
         files = request.files
         
-        # Determine upload type
         if 'file' in files:  # H5AD file
             file = files['file']
             if not file.filename.lower().endswith('.h5ad'):
@@ -243,7 +146,6 @@ def upload():
             session['file_type'] = 'h5ad'
             
         else:  # 10X files
-            
             has_matrix = any(f for f in files if 'matrix' in f.lower())
             has_barcodes = any(f for f in files if 'barcodes' in f.lower())
             has_features = any(f for f in files if 'features' in f.lower() or 'genes' in f.lower())
@@ -278,8 +180,88 @@ def upload():
             session['file_type'] = '10x'
             print("Session file_type set to:", session['file_type'])
         
+        # Annotation file 
+        annotation_data = None
+        if 'anno' in files: 
+            annotation_file = files['anno']
+            if annotation_file.filename != '':  
+                if not any(annotation_file.filename.lower().endswith(ext) for ext in ['.txt', '.csv', '.tsv']):
+                    return jsonify({'error': 'Annotation file must be .txt, .csv, or .tsv'}), 400
+                
+                file_extension = os.path.splitext(annotation_file.filename)[1]
+                annotation_path = os.path.join(app.config['UPLOAD_FOLDER'], f'annotation_{unique_id}{file_extension}')
+                annotation_file.save(annotation_path)
+                session['annotation_path'] = annotation_path
+
+                try:
+                    if annotation_path.endswith('.csv'):
+                        annotation_data = pd.read_csv(annotation_path)
+                    else: 
+                        annotation_data = pd.read_csv(annotation_path, sep='\t')
+                    session['annotation_data'] = annotation_data.to_json()
+                    
+                except Exception as e:
+                    print(f"Error reading annotation file: {e}")
+                    session['annotation_error'] = str(e)
+
         session['file_path'] = file_path
-        return jsonify({'success': True, 'message': 'Files uploaded successfully'})
+        
+        # Loading adata
+        file_path = session.get('file_path')
+        file_type = session.get('file_type')
+
+        if file_type == '10x':
+            print('Loading 10X data from:', file_path)
+            mtx_gz_path = os.path.join(file_path, 'matrix.mtx.gz')
+            print("Checking for gzipped matrix at:", mtx_gz_path)
+            print("Exists:", os.path.exists(mtx_gz_path))
+
+            print("Directory listing:", os.listdir(file_path))
+
+            for f in ["barcodes.tsv.gz", "features.tsv.gz", "matrix.mtx.gz"]:
+                fpath = os.path.join(file_path, f)
+                print(f"Checking {fpath} ... exists:", os.path.exists(fpath))
+                try:
+                    with gzip.open(fpath, "rt") as g:
+                        for i, line in enumerate(g):
+                            print(f"First line of {f}: {line.strip()}")
+                            break
+                except Exception as e:
+                    print(f"Failed to open {f}: {e}")
+            
+            if os.path.exists(mtx_gz_path):
+                adata = sc.read_10x_mtx(file_path, var_names='gene_symbols')
+            else:
+                raise FileNotFoundError("Could not find matrix.mtx or matrix.mtx.gz in the 10X directory")
+        else:  
+            print('Loading h5ad file:', file_path)
+            adata = sc.read_h5ad(file_path)
+
+        if annotation_data is not None:
+            try:
+                if len(annotation_data) == adata.n_obs:
+                    for col_name in annotation_data.columns:
+                        if col_name not in adata.obs.columns:  
+                            adata.obs[col_name] = annotation_data[col_name].values
+                    print(f"Added {len(annotation_data.columns)} annotation columns")
+                else:
+                    print(f"Warning: Annotation rows ({len(annotation_data)}) don't match cells ({adata.n_obs})")
+            except Exception as e:
+                print(f"Error applying annotation: {e}")
+
+        INITIAL_ADATA_CACHE[file_path] = adata.copy()
+
+        return jsonify({'success': True, 
+                        'message': 'Files uploaded successfully',
+                        'adata_info': {
+                            'dimensions': f"{adata.n_obs} cells × {adata.n_vars} genes",
+                            'obs_keys': list(adata.obs.keys()),
+                            'var_keys': list(adata.var.keys()),
+                            'layers': list(adata.layers.keys()),
+                            'uns_keys': list(adata.uns.keys()),
+                            'obsm_keys': list(adata.obsm.keys()),
+                            'varm_keys': list(adata.varm.keys())
+                            }})
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -292,50 +274,19 @@ def cache_preprocessed_data(func):
         print("Session file_type:", session.get('file_type'))
 
         file_path = session.get('file_path')
-        file_type = session.get('file_type')
-        
         if not file_path:
             print("ERROR: No file_path in session")
             return jsonify({'error': 'No file uploaded'}), 400
 
-        cached_data = PREPROCESS_CACHE.get(file_path)
-        if cached_data is not None:
-            logger.info("Using cached preprocessed data")
-            return func(cached_data, *args, **kwargs)
+        if file_path in PREPROCESS_CACHE:
+            print("Using cached preprocessed data")
+            adata = PREPROCESS_CACHE[file_path]
+        else:
+            if file_path not in INITIAL_ADATA_CACHE:
+                return jsonify({'error': 'Data not found. Please upload again.'}), 400
 
-        try:
-            logger.info(f"Loading {file_type} data from: {file_path}")
-
-            if file_type == '10x':
-                print('Loading 10X data from:', file_path)
-                mtx_gz_path = os.path.join(file_path, 'matrix.mtx.gz')
-                print("Checking for gzipped matrix at:", mtx_gz_path)
-                print("Exists:", os.path.exists(mtx_gz_path))
-
-                print("Directory listing:", os.listdir(file_path))
-
-                for f in ["barcodes.tsv.gz", "features.tsv.gz", "matrix.mtx.gz"]:
-                    fpath = os.path.join(file_path, f)
-                    print(f"Checking {fpath} ... exists:", os.path.exists(fpath))
-                    try:
-                        with gzip.open(fpath, "rt") as g:
-                            for i, line in enumerate(g):
-                                print(f"First line of {f}: {line.strip()}")
-                                break
-                    except Exception as e:
-                        print(f"Failed to open {f}: {e}")
-                
-                if os.path.exists(mtx_gz_path):
-                    adata = sc.read_10x_mtx(file_path, var_names='gene_symbols')
-                else:
-                    raise FileNotFoundError("Could not find matrix.mtx or matrix.mtx.gz in the 10X directory")
-            else:  
-                print('Loading h5ad file:', file_path)
-                adata = sc.read_h5ad(file_path)
-            
-            if adata.X.shape[0] == 0:
-                raise ValueError("Empty matrix after load")
-
+            print("Processing data from initial cache")
+            adata = INITIAL_ADATA_CACHE[file_path].copy()
             if scipy.sparse.issparse(adata.X) and (adata.n_obs * adata.n_vars < 1e7):
                 adata.X = adata.X.toarray()
 
@@ -344,14 +295,13 @@ def cache_preprocessed_data(func):
             sc.pp.filter_genes(adata, min_cells=10)
             sc.pp.normalize_total(adata)
             sc.pp.log1p(adata)
-            sc.pp.pca(adata, n_comps=50)
+            sc.pp.pca(adata, n_comps=100)
 
-            PREPROCESS_CACHE.set(file_path, adata)
-            logger.info('Cached preprocessed data to disk')
-            return func(adata, *args, **kwargs)
+            PREPROCESS_CACHE[file_path] = adata
+            print('Cached preprocessed data')
 
-        except Exception as e:
-            return jsonify({'error': f"Processing failed: {str(e)}"}), 500
+        return func(adata, *args, **kwargs)
+        
     return wrapper
 
 @app.route('/preview', methods=['POST'])
@@ -387,8 +337,7 @@ def preview(adata):
         parc1.run_PARC()
         parc_labels = parc1.labels
         adata.obs["PARC"] = pd.Categorical(parc_labels)
-        
-        PREPROCESS_CACHE.set(session['file_path'], adata)
+        PREPROCESS_CACHE[session['file_path']] = adata
 
         sc.settings.n_jobs=4
         sc.pp.neighbors(adata, n_neighbors=10, n_pcs=40)
@@ -465,11 +414,10 @@ def analyze(adata):
         v0 = results['via_obj']
 
         global VIA_CACHE        
-        VIA_CACHE.set('via_obj', v0)
+        VIA_CACHE['via_obj'] = v0
 
         plots = via_plot(params=params, v0=v0, file_data=file_data)
         
-        gc.collect()
         return jsonify({'success': True, 'plots': plots})
         
     except Exception as e:
@@ -519,4 +467,5 @@ def download_all():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', use_reloader=False, port=10000)
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', use_reloader=False, port=port)

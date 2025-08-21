@@ -956,7 +956,7 @@ footer {
 /* Containers */
 #pca-container, #atlas-container, #umap-container, #via-container, #line-container,
 #per-container, #em-container, #grid-container, #stream-container, #vel-container, #cl-container, #mds-container,
-#lineage-container, #heat-container, #exp-container {
+#lineage-container, #heat-container, #exp-container, #parc-container {
     margin: 0 auto;
     padding: 16px;
     background: #f8f9fa;
@@ -980,7 +980,7 @@ footer {
 
 #pca-plot, #atlas-plot, #umap-plot, #via-plot, #line-plot,
 #per-plot, #em-plot, #grid-plot, #stream-plot, #vel-plot, #cl-plot, #mds-plot,
-#lineage-plot, #heat-plot, #exp-plot {
+#lineage-plot, #heat-plot, #exp-plot, #parc-plot {
     max-width: 100%;
     max-height: calc(100% - 40px); 
     width: auto;
@@ -1590,7 +1590,7 @@ footer {
 }
 
 /* ANNDATA */
-.anndata {
+.anndata, .anndata2 {
     display: none;
     white-space: pre-wrap;
     font-family: monospace;

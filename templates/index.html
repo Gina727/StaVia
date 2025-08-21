@@ -38,6 +38,7 @@
         </div>
     </div>
 
+    <!-- Tutorial -->
     <div class="tutorial">
         <div class="step">
             <i class="fa-solid fa-folder-open"></i>
@@ -124,10 +125,26 @@
             </div>
         </div>
 
+        <div class="divider">
+            <span>OPTIONAL</span>
+        </div>
+
+        <div class="separate">
+            <h2>UPLOAD ANNOTATIONS</h2>
+            <div id="dropAreaAnno" class="drop-area2">
+                <p class="desc">Drag & drop your <strong>annotation</strong> file here or</p>
+                <input type="file" id="fileInputAnno" accept=".csv" class="hidden-input">
+                <button onclick="document.getElementById('fileInputAnno').click()">Select File</button>
+                <div id="anno-status" class="file-status">No file selected</div>
+            </div>
+        </div>
+
         <div id="upload-validation" class="validation-message">
-            Please upload either: (1) a single .h5ad file OR (2) all three 10X Genomics files
+            Please upload either: (1) a single .h5ad file OR (2) all three 10X Genomics files (AND an Annotation file)
         </div>
     </div>
+
+    <div class="anndata2"></div>
 
     <!-- Preview Data -->
     <div class="all-content">
@@ -150,9 +167,9 @@
                         <span class="toggle-label">PCA</span>
                     </label>
                     <label class="toggle">
-                        <input type="checkbox" class="toggle-checkbox" name="em-option" value="phate">
+                        <input type="checkbox" class="toggle-checkbox" name="em-option" value="parc">
                         <div class="toggle-switch"></div>
-                        <span class="toggle-label">PHATE</span>
+                        <span class="toggle-label">PARC</span>
                     </label>
 
                     <div class="form-group">
@@ -164,18 +181,16 @@
                         </span>
                         <input class="form-field" type="text" placeholder="cluster" name="color_umap" value="cluster" id="color_umap">
                     </div>
-
                     
-                        <select id="color-select" class="dropdown-select">
-                            <option value="">Color scheme</option>
-                            <option value="viridis">Viridis</option>
-                            <option value="rainbow">Rainbow</option>
-                            <option value="paired">Paired</option>
-                            <option value="plasma">Plasma</option>
-                            <option value="inferno">Inferno</option>
-                        </select>
+                    <select id="color-select" class="dropdown-select">
+                        <option value="">Color scheme</option>
+                        <option value="viridis">Viridis</option>
+                        <option value="rainbow">Rainbow</option>
+                        <option value="paired">Paired</option>
+                        <option value="plasma">Plasma</option>
+                        <option value="inferno">Inferno</option>
+                    </select>
                    
-
                     <button id="updatePreviewBtn" class="btn-update">
                         <i class="fas fa-sync-alt"></i> Update Preview
                     </button>
@@ -192,8 +207,8 @@
                             <img id="umap-plot" style="max-width: 100%; display: none;">
                         </div> 
                         
-                        <div id="phate-container" style="display: none;">
-                            <img id="phate-plot" style="max-width: 100%; display: none;">
+                        <div id="parc-container" style="display: none;">
+                            <img id="parc-plot" style="max-width: 100%; display: none;">
                         </div> 
                     </div>
                 </div>
@@ -523,6 +538,7 @@
 
     </div>
 
+    <!-- Results -->
     <div class="pref-container2">
         <div id="result"></div>
     </div>
@@ -845,18 +861,20 @@
     const fileInputMtx = document.getElementById('fileInputMtx');
     const fileInputBarcodes = document.getElementById('fileInputBarcodes');
     const fileInputGenes = document.getElementById('fileInputGenes');
+    const fileInputAnno = document.getElementById('fileInputAnno');
     
     
     const dropAreaH5ad = document.getElementById('dropAreaH5ad');
     const dropAreaMtx = document.getElementById('dropAreaMtx');
     const dropAreaBarcodes = document.getElementById('dropAreaBarcodes');
     const dropAreaGenes = document.getElementById('dropAreaGenes');
+    const dropAreaAnno = document.getElementById('dropAreaAnno');
     
     
     const uploadValidation = document.getElementById('upload-validation');
     
     
-    [dropAreaH5ad, dropAreaMtx, dropAreaBarcodes, dropAreaGenes].forEach(area => {
+    [dropAreaH5ad, dropAreaMtx, dropAreaBarcodes, dropAreaGenes, dropAreaAnno].forEach(area => {
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             area.addEventListener(eventName, preventDefaults, false);
         });
@@ -923,6 +941,14 @@
             check10xUpload();
         }
     });
+
+    dropAreaAnno.addEventListener('drop', function(e) {
+        const files = e.dataTransfer.files;
+        if (files.length) {
+            fileInputAnno.files = files;
+            updateFileStatus('anno', files[0]);
+        }
+    });
     
     // Can use e.target.files[0]
     fileInputH5ad.addEventListener('change', function() {
@@ -947,6 +973,10 @@
         updateFileStatus('genes', this.files[0]);
         clearH5adInput();
         check10xUpload();
+    });
+
+    fileInputAnno.addEventListener('change', function() {
+        updateFileStatus('anno', this.files[0]);
     });
 
     document.querySelectorAll('pre').forEach(pre => {
@@ -1001,6 +1031,7 @@
                 document.getElementById('updatePreviewBtn').disabled = false;
                 uploadValidation.textContent = 'Files uploaded successfully! Click "Update Preview" to view embeddings.';
                 uploadValidation.style.color = 'green';
+                displayPreview2(data)
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -1017,12 +1048,14 @@
         const mtxFile = fileInputMtx.files[0];
         const barcodesFile = fileInputBarcodes.files[0];
         const genesFile = fileInputGenes.files[0];
+        const annoFile = fileInputAnno.files[0];
 
         console.log("Files selected:", { 
         h5adFile: h5adFile?.name,
         mtxFile: mtxFile?.name, 
         barcodesFile: barcodesFile?.name,
-        genesFile: genesFile?.name
+        genesFile: genesFile?.name,
+        annoFile: annoFile?.name
         });
 
         
@@ -1038,6 +1071,11 @@
         else {
             console.error("Incomplete file selection");
             return Promise.reject(new Error('Please upload either:\n1. A single .h5ad file OR\n2. All three 10X Genomics files'));
+        }
+
+        if (annoFile) {
+            console.log("Annotation file detected, preparing upload");
+            formData.append('anno', annoFile);
         }
 
         console.log("FormData contents:"); 
@@ -1219,7 +1257,7 @@
         const analysisPlotTypes = [
             'atlas', 'via', 'line', 'per', 'em', 
             'grid', 'stream', 'vel', 'cl', 'mds',
-            'pca', 'umap', 'phate', 'lineage', 'heat', 'exp'
+            'pca', 'umap', 'parc', 'lineage', 'heat', 'exp'
         ];
 
         analysisPlotTypes.forEach(plotType => {
@@ -1409,6 +1447,108 @@
         });
     }
 
+    function displayPreview2(data) {
+        const anndataDiv2 = document.querySelector('.anndata2');
+        anndataDiv2.innerHTML = ''; 
+        
+        if (data.adata_info) {
+            const info = data.adata_info;
+            
+            const infoContainer = document.createElement('div');
+            infoContainer.style.fontFamily = 'monospace';
+            infoContainer.style.padding = '15px';
+            infoContainer.style.backgroundColor = '#f5f5f5';
+            infoContainer.style.borderRadius = '5px';
+            infoContainer.style.margin = '20px 0';
+            infoContainer.style.overflowX = 'auto';
+
+            const dimensions = document.createElement('div');
+            dimensions.textContent = `Dimensions: ${info.dimensions}`;
+            dimensions.style.marginBottom = '10px';
+            dimensions.style.fontWeight = 'bold';
+            infoContainer.appendChild(dimensions);
+            
+            const obsHeader = document.createElement('div');
+            obsHeader.textContent = 'Observations (.obs):';
+            obsHeader.style.fontWeight = 'bold';
+            obsHeader.style.marginBottom = '5px';
+            infoContainer.appendChild(obsHeader);
+            
+            const obsKeys = document.createElement('div');
+            obsKeys.textContent = info.obs_keys.join(', ');
+            obsKeys.style.marginBottom = '10px';
+            infoContainer.appendChild(obsKeys);
+
+            const varHeader = document.createElement('div');
+            varHeader.textContent = 'Variables (.var):';
+            varHeader.style.fontWeight = 'bold';
+            varHeader.style.marginBottom = '5px';
+            infoContainer.appendChild(varHeader);
+            
+            const varKeys = document.createElement('div');
+            varKeys.textContent = info.var_keys.join(', ');
+            varKeys.style.marginBottom = '10px';
+            infoContainer.appendChild(varKeys);
+
+            if (info.layers && info.layers.length > 0) {
+                const layersHeader = document.createElement('div');
+                layersHeader.textContent = 'Layers:';
+                layersHeader.style.fontWeight = 'bold';
+                layersHeader.style.marginBottom = '5px';
+                infoContainer.appendChild(layersHeader);
+                
+                const layersList = document.createElement('div');
+                layersList.textContent = info.layers.join(', ');
+                layersList.style.marginBottom = '10px';
+                infoContainer.appendChild(layersList);
+            }
+
+            if (info.uns_keys && info.uns_keys.length > 0) {
+                const unsHeader = document.createElement('div');
+                unsHeader.textContent = 'Unstructured Data (.uns):';
+                unsHeader.style.fontWeight = 'bold';
+                unsHeader.style.marginBottom = '5px';
+                infoContainer.appendChild(unsHeader);
+                
+                const unsList = document.createElement('div');
+                unsList.textContent = info.uns_keys.join(', ');
+                unsList.style.marginBottom = '10px';
+                infoContainer.appendChild(unsList);
+            }
+
+            if (info.obsm_keys && info.obsm_keys.length > 0) {
+                const unsHeader = document.createElement('div');
+                unsHeader.textContent = 'Cell Embeddings (.obsm):';
+                unsHeader.style.fontWeight = 'bold';
+                unsHeader.style.marginBottom = '5px';
+                infoContainer.appendChild(unsHeader);
+                
+                const unsList = document.createElement('div');
+                unsList.textContent = info.obsm_keys.join(', ');
+                unsList.style.marginBottom = '10px';
+                infoContainer.appendChild(unsList);
+            }
+
+            if (info.varm_keys && info.varm_keys.length > 0) {
+                const unsHeader = document.createElement('div');
+                unsHeader.textContent = 'Gene Embeddings (.varm):';
+                unsHeader.style.fontWeight = 'bold';
+                unsHeader.style.marginBottom = '5px';
+                infoContainer.appendChild(unsHeader);
+                
+                const unsList = document.createElement('div');
+                unsList.textContent = info.varm_keys.join(', ');
+                unsList.style.marginBottom = '10px';
+                infoContainer.appendChild(unsList);
+            }
+        
+            anndataDiv2.appendChild(infoContainer);
+            anndataDiv2.style.display = 'block';
+        } else {
+            anndataDiv2.style.display = 'none';
+        }
+    }
+
     function displayPreview(data) {
         const anndataDiv = document.querySelector('.anndata');
         anndataDiv.innerHTML = ''; 
@@ -1526,12 +1666,12 @@
             document.getElementById('umap-container').style.display = 'none';
         }
 
-        if (data.plots?.phate) {
-            document.getElementById('phate-plot').src = data.plots.phate;
-            document.getElementById('phate-plot').style.display = 'block';
-            document.getElementById('phate-container').style.display = 'block';
+        if (data.plots?.parc) {
+            document.getElementById('parc-plot').src = data.plots.parc;
+            document.getElementById('parc-plot').style.display = 'block';
+            document.getElementById('parc-container').style.display = 'block';
         } else {
-            document.getElementById('phate-container').style.display = 'none';
+            document.getElementById('parc-container').style.display = 'none';
         }
     }
 });

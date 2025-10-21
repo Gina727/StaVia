@@ -28,6 +28,7 @@ from io import BytesIO
 import base64
 import json
 
+# Plotting Lieneage Probability, Gene Trend Heatmaps, and Gene Expression (needs v0 object!!!)
 def more_plot(lineages, genes, v0, adata):
     plots = {}
     try:
@@ -73,8 +74,10 @@ def more_plot(lineages, genes, v0, adata):
     except Exception as e:
         return {'error': str(e)}
 
+# General VIA Plots
 def via_plot(params, v0, file_data):
     try: 
+        # Get all the parameters and files from Flask 
         var_names = params.get('var_names', None)
         dpi = int(params.get('dpi', 180))
         time_series_labels = params.get('time_series_labels', None)
@@ -84,6 +87,7 @@ def via_plot(params, v0, file_data):
         data_categories = params.get('par_option', [])
         use_velocity = 'rna-velocity' in data_categories
         do_spatial = 'spatial-temporal' in data_categories
+        # Create an empty plot object 
         plots = {}
 
         if file_data is not None: 
@@ -177,7 +181,8 @@ def via_plot(params, v0, file_data):
         # plt.savefig(line_img, format='png', bbox_inches='tight', dpi=120)
         # plt.close()
         # plots['line_plot'] = "data:image/png;base64," + base64.b64encode(line_img.getvalue()).decode('utf-8')
-
+        
+        # Plot this if the user ticks 'RNA Velocity'
         if use_velocity: 
             adata = sc.read(velocity_matrix_file)
             if var_names == 'None':
@@ -225,6 +230,7 @@ def via_plot(params, v0, file_data):
             plt.close()
             plots['vel'] = "data:image/png;base64," + base64.b64encode(vel_img.getvalue()).decode('utf-8')
 
+        # Plot this if the user ticks "Spatio-Temporal"
         if do_spatial:
             # Cluster on tissue slice
             # fig,ax1, ax2 = via.plot_clusters_spatial(spatial_coords=coords, clusters = [7,11,27,30], color='black', 
@@ -253,6 +259,7 @@ def via_plot(params, v0, file_data):
                 plt.close()
                 plots['mds'] = "data:image/png;base64," + base64.b64encode(mds_img.getvalue()).decode('utf-8')
 
+        # Return all the plots to the Flask app to be displayed on the frontend 
         return plots
     
     except Exception as e:

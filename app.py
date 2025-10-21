@@ -25,6 +25,7 @@ import gzip
 import shutil
 import parc
 
+# Initializing Flask App and the SQL database 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -52,6 +53,7 @@ INITIAL_ADATA_CACHE = {}
 def clear_trailing():
     session.modified = True
 
+# Automatically cleans up temporary files when the program exits (reload page)
 def cleanup():
     try:
         shutil.rmtree(UPLOAD_FOLDER)
@@ -60,6 +62,7 @@ def cleanup():
 
 atexit.register(cleanup)
 
+# Just for handling edge cases 
 def safe_json(obj):
     """Recursively replace NaN and inf with None for JSON serialization"""
     if isinstance(obj, dict):
@@ -72,6 +75,7 @@ def safe_json(obj):
         return obj
     return obj
 
+# Formatting parameters stored in the database (since they're stored in json)
 @app.template_filter('format_params')
 def format_params(params):
     if not params:
@@ -81,18 +85,21 @@ def format_params(params):
         if isinstance(value, list):
             value = ", ".join(value)
         result.append(f"{key}: {value}")
-    return "\n".join(result)  # or use <br> for HTML line breaks
+    return "\n".join(result)  
 app.jinja_env.filters['format_params'] = format_params
 
+# Set home route 
 @app.route('/')
 def home():
     return render_template('home.html')
 
+# Reload page when tasks are added 
 @app.route('/upload_page', methods=['GET'])
 def upload_page():
     tasks = Todo.query.order_by(Todo.date_created).all()
     return render_template('index.html', tasks=tasks)   
 
+# Adding tasks to the database 
 @app.route('/add_info', methods=['POST'])
 def add_info():
     try:
@@ -115,7 +122,8 @@ def add_info():
     except Exception as e:
         print("Error:", str(e))
         return jsonify({'error': str(e)}), 500
-    
+
+# Removing tasks from the database
 @app.route('/delete/<int:id>')
 def delete(id):
     task_to_delete = Todo.query.get_or_404(id)
@@ -127,14 +135,16 @@ def delete(id):
     except:
         return 'There was a problem deleting that task'
 
-
+# Just a route to the About page 
 @app.route('/about_page')
 def about_page():
     return render_template('about.html')
 
+# Handles main file upload (the two main sections at the top)
 @app.route('/upload', methods=['POST'])
 def upload():
     try:
+        # Reset the cache to accept new files 
         PREPROCESS_CACHE.clear()
         VIA_CACHE.clear()
         session.clear()
@@ -142,6 +152,9 @@ def upload():
 
         files = request.files
         
+        # Saving these files in temporary directories 
+
+        # For .h5ad files 
         if 'file' in files:  
             file = files['file']
             if not file.filename.lower().endswith('.h5ad'):
@@ -150,7 +163,7 @@ def upload():
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'uploaded_data_{unique_id}.h5ad')
             file.save(file_path)
             session['file_type'] = 'h5ad'
-            
+        # For matrix.mtx, barcodes, and features files (names MUST be as specified below (convention))
         else:  
             has_matrix = any(f for f in files if 'matrix' in f.lower())
             has_barcodes = any(f for f in files if 'barcodes' in f.lower())
@@ -172,6 +185,7 @@ def upload():
             barcodes_file.save(barcodes_path)
             features_file.save(features_path)
 
+            # Change all file types into .gz to be processed 
             for path in [mtx_path, barcodes_path, features_path]:
                     if path.endswith('.gz'):
                         continue
@@ -184,6 +198,7 @@ def upload():
             session['file_type'] = '10x'
             print("Session file_type set to:", session['file_type'])
         
+        # Check if the annotation file is uploaded or not 
         annotation_data = None
         if 'anno' in files: 
             annotation_file = files['anno']
@@ -207,11 +222,16 @@ def upload():
                     print(f"Error reading annotation file: {e}")
                     session['annotation_error'] = str(e)
 
+        # Storing the file path in the user's session 
         session['file_path'] = file_path
         
+        # Retrieving Session data 
         file_path = session.get('file_path')
         file_type = session.get('file_type')
 
+        # Loading data from the main files 
+
+        # I added functions for listing directories just for sanity check 
         if file_type == '10x':
             print('Loading 10X data from:', file_path)
             mtx_gz_path = os.path.join(file_path, 'matrix.mtx.gz')
@@ -219,7 +239,6 @@ def upload():
             print("Exists:", os.path.exists(mtx_gz_path))
 
             print("Directory listing:", os.listdir(file_path))
-
             for f in ["barcodes.tsv.gz", "features.tsv.gz", "matrix.mtx.gz"]:
                 fpath = os.path.join(file_path, f)
                 print(f"Checking {fpath} ... exists:", os.path.exists(fpath))
@@ -253,6 +272,7 @@ def upload():
 
         INITIAL_ADATA_CACHE[file_path] = adata.copy()
 
+        # Return Anndata object information read from the main files 
         return jsonify({'success': True, 
                         'message': 'Files uploaded successfully',
                         'adata_info': {
@@ -268,6 +288,7 @@ def upload():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Preprocessing the data and caching it 
 def cache_preprocessed_data(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -280,6 +301,7 @@ def cache_preprocessed_data(func):
             print("ERROR: No file_path in session")
             return jsonify({'error': 'No file uploaded'}), 400
 
+        # Using cached data from either this function or initial cache (data before preprocessing)
         if file_path in PREPROCESS_CACHE:
             print("Using cached preprocessed data")
             adata = PREPROCESS_CACHE[file_path]
@@ -292,6 +314,7 @@ def cache_preprocessed_data(func):
             if scipy.sparse.issparse(adata.X) and (adata.n_obs * adata.n_vars < 1e7):
                 adata.X = adata.X.toarray()
 
+            # Standard procedures of preprocessing data ***WHAT NEEDS TO BE CHANGED***
             print('Preprocessing Data')
             sc.pp.filter_cells(adata, min_genes=100)
             sc.pp.filter_genes(adata, min_cells=10)
@@ -299,6 +322,7 @@ def cache_preprocessed_data(func):
             sc.pp.log1p(adata)
             sc.pp.pca(adata, n_comps=100)
 
+            # Caching the preprocessed data 
             PREPROCESS_CACHE[file_path] = adata
             print('Cached preprocessed data')
 
@@ -306,9 +330,11 @@ def cache_preprocessed_data(func):
         
     return wrapper
 
+# Previewing data with PCA, UMAP, or PHATE (Data preprocessing automatically runs before it in the first run)
 @app.route('/preview', methods=['POST'])
 @cache_preprocessed_data
 def preview(adata):
+    # Get choices (from checkboxes) and colors 
     choice = request.form.getlist('em') 
     color = request.form.get('color_umap', 'parc_cluster')
     color_scheme = request.form.get('color_scheme', 'viridis')
@@ -353,6 +379,7 @@ def preview(adata):
         parc_plot = "data:image/png;base64," + base64.b64encode(parc_img.getvalue()).decode('utf-8')
         print(f"PARC plot size: {len(parc_plot)//1024} KB")
 
+    # Also returns Anndata information (after preprocessing)
     preview_data = {
         'adata_info': {
             'dimensions': f"{adata.n_obs} cells × {adata.n_vars} genes",
@@ -372,10 +399,12 @@ def preview(adata):
     
     return jsonify(safe_json(preview_data))
 
+# Main analysis pipeline 
 @app.route('/analyze', methods=['POST'])
 @cache_preprocessed_data
 def analyze(adata):
     try:
+        # Checking memory threshold (again, for sanity check because most files are very big)
         try:
             import psutil
             if psutil.virtual_memory().available < 4 * 1024**3:  # <4GB
@@ -384,7 +413,8 @@ def analyze(adata):
                     raise MemoryError("Insufficient memory for analysis")
         except ImportError:
             pass
-
+        
+        # Getting all of the parameters from frontend 
         params = {
             'var_names': request.form.get('var_names'),
             'time_series_labels': request.form.get('time_series_labels'),
@@ -399,32 +429,38 @@ def analyze(adata):
             'par_option': request.form.getlist('par-option')
         }
 
+        # Saving files other than the main oens 
         file_data = {}
         for file_type in ['time-upload', 'velocity-matrix-upload', 'gene-matrix-upload', 'root-upload', 'csv-upload']:
             if file_type in request.files:
                 file = request.files[file_type]
                 if file.filename != '':
+                    # Added this because of naming conflict, you can change the name later to make it neater
                     if file_type == 'csv-upload':
                         file_data['true_labels'] = pd.read_csv(BytesIO(file.read()))
                     else:
                         file_data[file_type] = pd.read_csv(BytesIO(file.read()))
 
+        # RUN VIA ANALYSIS (See via_analysis.py)
         results = run_via_analysis(adata=adata, params=params, file_data=file_data)
         if 'error' in results:
             return jsonify(results), 500
             
         v0 = results['via_obj']
 
+        # Store the via object for further plotting 
         global VIA_CACHE        
         VIA_CACHE['via_obj'] = v0
 
+        # Starts plotting (See plotting.py)
         plots = via_plot(params=params, v0=v0, file_data=file_data)
         
         return jsonify({'success': True, 'plots': plots})
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
+
+# Generates additional plots     
 @app.route('/add_plots', methods=['POST'])
 @cache_preprocessed_data
 def add_plots(adata):
@@ -438,6 +474,7 @@ def add_plots(adata):
         if v0 is None:
             return jsonify({'error': 'VIA object not found. Run analysis first.'}), 400
 
+        # See plotting.py 
         plots = more_plot(lineages=lineages, genes=genes, adata=adata, v0=v0)
 
         return jsonify({'success': True, 'plots': plots})
@@ -445,7 +482,7 @@ def add_plots(adata):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
+# Downloads all plots into a zip file 
 @app.route('/download_all', methods=['POST'])
 def download_all():
     try:
@@ -468,8 +505,12 @@ def download_all():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# When the script is run directly, run the app 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', use_reloader=False, port=10000, debug=True)
+# When another script imports this file as a module, create a database 
+# Actually problematic. You should move this to the top (below database initialization), 
+# but it didn't work for me when exporting the app. You can try.
 else: 
     with app.app_context():
         print("Creating database tables...")

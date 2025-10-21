@@ -53,6 +53,7 @@ def run_via_analysis(adata, params, file_data = None):
 
         results = {}
 
+        true_label = None
         if true_label_file:
             try:
                 true_label = []
@@ -67,9 +68,9 @@ def run_via_analysis(adata, params, file_data = None):
                 true_label = None
         else: 
             if true_label and isinstance(true_label, str):
-                if true_label.lower() == 'none':
+                if true_label.lower() == 'none' and adata_obs.lower() == 'none':
                     true_label = None
-                else:
+                elif true_label.lower() != 'none' and adata_obs.lower() == 'none':
                     try:
                         true_label = [item.strip() for item in true_label.split(',')]
                         if all(item.lstrip('-').isdigit() for item in true_label):
@@ -77,12 +78,13 @@ def run_via_analysis(adata, params, file_data = None):
                     except Exception as e:
                         print(f"Error processing true_label: {e}")
                         true_label = None
-        
-        if adata_obs and isinstance(adata_obs, str) and true_label is None:
-            if adata_obs.lower() == 'none':
-                true_label = None
-            else: 
-                true_label = adata.obs[adata_obs]
+                else:
+                    if "annotation" in adata.obs:
+                        true_label = adata.obs["annotation"]
+                    if "PARC" in adata.obs:
+                        true_label = adata.obs["PARC"]
+                    else: 
+                        true_label = adata.obs[adata_obs]
 
         if time_series_file:
             try:
@@ -144,11 +146,22 @@ def run_via_analysis(adata, params, file_data = None):
             time_series_labels=None
 
         if use_velocity:
-            velocity_matrix = pd.read_csv(velocity_matrix_file)
-            velocity_matrix = velocity_matrix_file.values
-            gene_matrix = pd.read_csv(gene_matrix_file)
-            adata.X = gene_matrix.values
-            velo_weight=0.5
+            if velocity_matrix_file:
+                try: 
+                    velocity_matrix = pd.read_csv(velocity_matrix_file)
+                    velocity_matrix = velocity_matrix_file.values
+
+                    if not gene_matrix_file:
+                        gene_matrix=adata.X.todense()
+                    else: 
+                        gene_matrix = pd.read_csv(gene_matrix_file)
+                        adata.X = gene_matrix
+
+                    velo_weight=0.5
+                except Exception as e: 
+                    print(f"Error loading velocity data: {e}")
+            else: 
+                print('Please upload velocity matrix file')
         else: 
             gene_matrix =None
             velocity_matrix = None
@@ -204,5 +217,4 @@ def run_via_analysis(adata, params, file_data = None):
         return results
     
     except Exception as e:
-
         return {'error': str(e)}

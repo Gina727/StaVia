@@ -27,6 +27,9 @@ import parc
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = '/app/instance/uploads'
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 db = SQLAlchemy(app)
 app.secret_key = os.urandom(24)
 
@@ -44,6 +47,10 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 PREPROCESS_CACHE = {}
 VIA_CACHE = {}
 INITIAL_ADATA_CACHE = {} 
+
+@app.before_request
+def clear_trailing():
+    session.modified = True
 
 def cleanup():
     try:
@@ -135,17 +142,16 @@ def upload():
 
         files = request.files
         
-        if 'file' in files:  # H5AD file
+        if 'file' in files:  
             file = files['file']
             if not file.filename.lower().endswith('.h5ad'):
                 return jsonify({'error': 'Only .h5ad files supported'}), 400
             
-            # Save h5ad file
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'uploaded_data_{unique_id}.h5ad')
             file.save(file_path)
             session['file_type'] = 'h5ad'
             
-        else:  # 10X files
+        else:  
             has_matrix = any(f for f in files if 'matrix' in f.lower())
             has_barcodes = any(f for f in files if 'barcodes' in f.lower())
             has_features = any(f for f in files if 'features' in f.lower() or 'genes' in f.lower())
@@ -154,12 +160,10 @@ def upload():
                 file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'10x_data_{unique_id}')
                 os.makedirs(file_path, exist_ok=True)
 
-                # Find the actual files
                 mtx_file = next(f for f in files.values() if 'matrix' in f.filename.lower())
                 barcodes_file = next(f for f in files.values() if 'barcodes' in f.filename.lower())
                 features_file = next(f for f in files.values() if 'features' in f.filename.lower() or 'gene' in f.filename.lower())
 
-            # Save original files first
             mtx_path = os.path.join(file_path, 'matrix.mtx')
             barcodes_path = os.path.join(file_path, 'barcodes.tsv')
             features_path = os.path.join(file_path, 'features.tsv')
@@ -180,7 +184,6 @@ def upload():
             session['file_type'] = '10x'
             print("Session file_type set to:", session['file_type'])
         
-        # Annotation file 
         annotation_data = None
         if 'anno' in files: 
             annotation_file = files['anno']
@@ -206,7 +209,6 @@ def upload():
 
         session['file_path'] = file_path
         
-        # Loading adata
         file_path = session.get('file_path')
         file_type = session.get('file_type')
 
@@ -467,5 +469,9 @@ def download_all():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', use_reloader=False, port=port)
+    app.run(host='0.0.0.0', use_reloader=False, port=10000, debug=True)
+else: 
+    with app.app_context():
+        print("Creating database tables...")
+        db.create_all()
+        print("Database tables created!")

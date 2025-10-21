@@ -41,6 +41,7 @@ def more_plot(lineages, genes, v0, adata):
         via.plot_sc_lineage_probability(via_object=v0, embedding=adata.obsm['X_pca'], idx=None, cmap_name='plasma', dpi=150, 
                                         marker_lineages=lineages, fontsize=8, alpha_factor=0.9, 
                                         majority_cluster_population_dict=None, cmap_sankey='rainbow', do_sankey=False)
+        plt.gcf().set_size_inches(16,8)
         lineage_img = BytesIO()
         plt.savefig(lineage_img, format='png', bbox_inches='tight', dpi=120)
         plt.close()
@@ -61,6 +62,7 @@ def more_plot(lineages, genes, v0, adata):
         via.get_gene_expression(via_object=v0, gene_exp=df_genes_exp, cmap='jet', dpi=150, marker_genes=[], 
                                 linewidth=2.0, n_splines=10, spline_order=4, fontsize_=8, marker_lineages=[], 
                                 optional_title_text='', cmap_dict=None, conf_int=0.95, driver_genes=False, driver_lineage=None)
+        plt.gcf().set_size_inches(16,8)
         exp_img = BytesIO()
         plt.savefig(exp_img, format='png', bbox_inches='tight', dpi=120)
         plt.close()

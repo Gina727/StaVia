@@ -1,7 +1,10 @@
 import pandas as pd
 import scanpy as sc
+
 from via_analysis import run_via_analysis
 from plotting import via_plot, more_plot
+from file_functions import read_10x_mtx
+
 from flask import Flask, render_template, request, jsonify, send_file, session, url_for, redirect
 from flask_sqlalchemy import SQLAlchemy
 import json
@@ -168,7 +171,7 @@ def upload():
             has_matrix = any(f for f in files if 'matrix' in f.lower())
             has_barcodes = any(f for f in files if 'barcodes' in f.lower())
             has_features = any(f for f in files if 'features' in f.lower() or 'genes' in f.lower())
-            
+
             if has_matrix and has_barcodes and has_features:
                 file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'10x_data_{unique_id}')
                 os.makedirs(file_path, exist_ok=True)
@@ -249,11 +252,39 @@ def upload():
                             break
                 except Exception as e:
                     print(f"Failed to open {f}: {e}")
+        
+            if os.path.exists(mtx_gz_path): 
+                try:
+                    print("Using scanpy 10x data reader")
+                    print(f"Reading from: {file_path}")
+                    print(f"Files in directory: {os.listdir(file_path)}")
+        
+                    adata = sc.read_10x_mtx(file_path, var_names='gene_symbols', cache=True)
+                    print("Scanpy reader successful")
+                except Exception as e:
+                    print(f"Error with scanpy 10x reader: {str(e)}")
+                    print(f"Error type: {type(e).__name__}")
+                    import traceback
+                    print(f"Traceback: {traceback.format_exc()}")
+                    print("Falling back to manual 10x data reader")
+    
+                try:
+                    adata = read_10x_mtx(file_path)
+                    print("Manual reader successful")
+                except Exception as e2:
+                    print(f"Error with manual reader: {e2}")
+                    raise Exception(f"Both readers failed. Final error: {e2}")
             
-            if os.path.exists(mtx_gz_path):
-                adata = sc.read_10x_mtx(file_path, var_names='gene_symbols')
-            else:
-                raise FileNotFoundError("Could not find matrix.mtx or matrix.mtx.gz in the 10X directory")
+            # if os.path.exists(mtx_gz_path): 
+            #     try:
+            #         print("Using scanpy 10x data reader")
+            #         adata = sc.read_10x_mtx(file_path, var_names='gene_symbols', cache=True)
+            #     except Exception as e:
+            #         print(f"Error making adata: {e}")
+                # except:
+                    # print("Using manual 10x data reader")
+                    # adata = read_10x_mtx(file_path)
+            # raise FileNotFoundError("Could not find matrix.mtx or matrix.mtx.gz in the 10X directory")
         else:  
             print('Loading h5ad file:', file_path)
             adata = sc.read_h5ad(file_path)
@@ -284,7 +315,6 @@ def upload():
                             'obsm_keys': list(adata.obsm.keys()),
                             'varm_keys': list(adata.varm.keys())
                             }})
-    
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -353,7 +383,7 @@ def preview(adata):
         pca_plot = "data:image/png;base64," + base64.b64encode(pca_img.getvalue()).decode('utf-8')
 
     if 'umap' in choice:
-        adata.obsm['X_umap'] = umap.UMAP(n_neighbors=20, min_dist=0.2, spread=5, init='pca').fit_transform(adata.obsm['X_pca'])
+        adata.obs['X_umap'] = umap.UMAP(n_neighbors=20, min_dist=0.2, spread=5, init='pca').fit_transform(adata.obsm['X_pca'])
         sc.pl.embedding(adata, basis='X_umap', color=[color], palette=color_scheme, size=200, show=False, return_fig=True)
         umap_img = BytesIO()
         plt.savefig(umap_img, format='png', bbox_inches='tight', dpi=120)

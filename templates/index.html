@@ -245,6 +245,11 @@
                         <div class="toggle-switch"></div>
                         <span class="toggle-label">Spatial-Temporal</span>
                     </label>
+                    <label class="toggle">
+                        <input type="checkbox" class="toggle-checkbox" name="par-option" value="cytometry">
+                        <div class="toggle-switch"></div>
+                        <span class="toggle-label">Cytometry</span>
+                    </label>
                     
                     <h3>Choice of Labels</h3>
                     <p>Enter label here: </p>
@@ -462,6 +467,82 @@
                     aria-selected="false" 
                     aria-controls="panel2" 
                     tabindex="0" class="tab-label">RNA Velocity</label>
+                <div id="tab-content2" 
+                    class="tab-content"
+                    role="tabpanel" 
+                    aria-labelledby="specification" 
+                    aria-hidden="true">
+                    <div class = "centered-container">
+                        <div class="pref-container4">
+                        <h3>Variable Input</h3>
+                        <p>Enter the gene to be plotted for expression level: </p>
+                        <div class="form-group">
+                            <span class="popup" data-popup-id="edge-popup">
+                                <span>var_names</span>
+                                <span class="popuptext" id="edge-popup">
+                                    Name of the gene to be plotted. If the input is None, the choice of gene will be random. 
+                                </span>
+                            </span>
+                            <input class="form-field" type="text" placeholder="None" name="var_names" value="None" id="var_names_input">
+                        </div>
+
+                            <p>File upload for user (Optional): </p>
+                            <div class="coll">
+                                <div class="coll-child">
+                                    <span class="popup" data-popup-id="velo-popup">
+                                        <span class="head">velocity_matrix</span>
+                                        <span class="popuptext" id="velo-popup">
+                                            The velocity matrix uploaded by the user, or computed by scVelo (or similar package) and stored in adata.layers[‘velocity’].
+                                            Requires gene_matrix to be provided too.
+                                        </span>
+                                    </span>
+                                    <input type="file" id="velocity-matrix-upload" accept=".csv" style="display: none;">
+                                    <button onclick="document.getElementById('velocity-matrix-upload').click()" class="btn-csv">Select CSV File</button>
+                                    <div id="csv-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                                </div>
+
+                                <div class="coll-child">
+                                    <span class="popup" data-popup-id="gene-popup">
+                                        <span class="head">gene_matrix</span>
+                                        <span class="popuptext" id="gene-popup">
+                                            Only used if Velocity_matrix is available. matrix of size [n_samples x n_genes]. 
+                                            Recommended to use a subset like HVGs rather than full set of genes. Require to densify 
+                                            input if taking from adata = adata.X.todense()
+                                        </span>
+                                    </span>
+                                    <input type="file" id="gene-matrix-upload" accept=".csv" style="display: none;">
+                                    <button onclick="document.getElementById('gene-matrix-upload').click()" class="btn-csv">Select CSV File</button>
+                                    <div id="csv-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                                </div>
+                            </div>
+                        <h3>Adjust the preferred value of DPI</h3>
+                            <ul id="filter1" class="filter-switch">
+                                <li class="filter-switch-item">
+                                    <input type="radio" name="dpi-option" id="dpi-low" class="sr-only" value="80" checked>
+                                    <label for="dpi-low" class="dpi">Low (80dpi)</label>
+                                </li>
+                                <li class="filter-switch-item">
+                                    <input type="radio" name="dpi-option" id="dpi-medium" value="120" class="sr-only">
+                                    <label for="dpi-medium" class="dpi">Medium (120dpi)</label>
+                                </li>
+                                <li class="filter-switch-item">
+                                    <input type="radio" name="dpi-option" id="dpi-high" value="300" class="sr-only">
+                                    <label for="dpi-high" class="dpi">High (300dpi)</label>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </li>
+
+            <!-- Fourth Tab -->
+            <li>
+                <input type="radio" name="tabs" id="tab2" value="cytometry"/>
+                <label for="tab2"
+                    role="tab" 
+                    aria-selected="false" 
+                    aria-controls="panel2" 
+                    tabindex="0" class="tab-label">Cytometry</label>
                 <div id="tab-content2" 
                     class="tab-content"
                     role="tabpanel" 

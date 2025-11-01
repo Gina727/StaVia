@@ -42,6 +42,7 @@ def run_via_analysis(adata, params, file_data = None):
         time_series = 'time-series' in data_categories
         use_velocity = 'rna-velocity' in data_categories
         do_spatial = 'spatial-temporal' in data_categories
+        do_cytometry = 'cytometry' in data_categories
 
         if file_data is not None: 
             time_series_file = file_data.get('time-upload')
@@ -50,6 +51,9 @@ def run_via_analysis(adata, params, file_data = None):
             root_upload_file = file_data.get('root-upload')
             true_label_file = file_data.get('csv-upload')
             spatial_coords_file = file_data.get('coords-upload')
+            cytometry_phase_file = file_data.get('cytometry-phase-upload')
+            cytometry_features_file = file_data.get('cytometry-features-upload')
+            print("getting data")
 
         results = {}
 
@@ -189,6 +193,9 @@ def run_via_analysis(adata, params, file_data = None):
             spatial_knn_trajectory = 0
             coords = None  
             spatial_weight = 0
+        
+        if do_cytometry:
+            print("Running cytometry analysis...")
     
         print('RUN VIA')
         v0 = via.VIA(adata.obsm['X_pca'][:,:ncomp], true_label = true_label, memory = memory,

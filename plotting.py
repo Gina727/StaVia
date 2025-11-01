@@ -87,6 +87,7 @@ def via_plot(params, v0, file_data):
         data_categories = params.get('par_option', [])
         use_velocity = 'rna-velocity' in data_categories
         do_spatial = 'spatial-temporal' in data_categories
+        do_cytomtetry = 'cytometry' in data_categories
         # Create an empty plot object 
         plots = {}
 

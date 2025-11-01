@@ -440,7 +440,7 @@ def analyze(adata):
             if psutil.virtual_memory().available < 4 * 1024**3:  # <4GB
                 gc.collect()
                 if psutil.virtual_memory().available < 4 * 1024**3:
-                    raise MemoryError("Insufficient memory for analysis")
+                    raise MemoryError("Insufficient memory for analysis. Close other running programs to release computer memory.")
         except ImportError:
             pass
         
@@ -461,7 +461,7 @@ def analyze(adata):
 
         # Saving files other than the main oens 
         file_data = {}
-        for file_type in ['time-upload', 'velocity-matrix-upload', 'gene-matrix-upload', 'root-upload', 'csv-upload']:
+        for file_type in ['time-upload', 'velocity-matrix-upload', 'gene-matrix-upload', 'root-upload', 'csv-upload', 'cytometry-phase-upload', 'cytometry-features-upload']:
             if file_type in request.files:
                 file = request.files[file_type]
                 if file.filename != '':

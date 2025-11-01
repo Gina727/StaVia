@@ -537,13 +537,13 @@
 
             <!-- Fourth Tab -->
             <li>
-                <input type="radio" name="tabs" id="tab2" value="cytometry"/>
-                <label for="tab2"
+                <input type="radio" name="tabs" id="tab4" value="cytometry"/>
+                <label for="tab4"
                     role="tab" 
                     aria-selected="false" 
                     aria-controls="panel2" 
                     tabindex="0" class="tab-label">Cytometry</label>
-                <div id="tab-content2" 
+                <div id="tab-content4" 
                     class="tab-content"
                     role="tabpanel" 
                     aria-labelledby="specification" 
@@ -552,7 +552,7 @@
                         <div class="pref-container4">
                         <h3>Variable Input</h3>
                         <p>Enter the gene to be plotted for expression level: </p>
-                        <div class="form-group">
+                        <!-- <div class="form-group">
                             <span class="popup" data-popup-id="edge-popup">
                                 <span>var_names</span>
                                 <span class="popuptext" id="edge-popup">
@@ -560,16 +560,15 @@
                                 </span>
                             </span>
                             <input class="form-field" type="text" placeholder="None" name="var_names" value="None" id="var_names_input">
-                        </div>
+                        </div> -->
 
-                            <p>File upload for user (Optional): </p>
+                            <p>File upload for user: </p>
                             <div class="coll">
                                 <div class="coll-child">
                                     <span class="popup" data-popup-id="velo-popup">
                                         <span class="head">velocity_matrix</span>
                                         <span class="popuptext" id="velo-popup">
-                                            The velocity matrix uploaded by the user, or computed by scVelo (or similar package) and stored in adata.layers[‘velocity’].
-                                            Requires gene_matrix to be provided too.
+                                            Cell-phase file is used to label the feature matrix. M1 denotes G1 phase, M2 denotes S phase and M3 denotes M/G2 phase.
                                         </span>
                                     </span>
                                     <input type="file" id="velocity-matrix-upload" accept=".csv" style="display: none;">

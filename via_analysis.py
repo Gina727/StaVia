@@ -214,6 +214,10 @@ def run_via_analysis(adata, params, file_data = None):
                     viagraph_decay = 1.0, 
                     preserve_disconnected=False,
                     do_spatial_knn=do_spatial, do_spatial_layout= do_spatial, spatial_coords = coords, spatial_knn=spatial_knn_trajectory)
+        print(f"DEBUG: root_user = {root_user}")
+        print(f"DEBUG: type = {type(root_user)}, len = {len(root_user)}")
+        print(f"DEBUG: values = {[type(x) for x in root_user]}")
+        print(f"DEBUG: adata.n_obs = {adata.n_obs}")
         v0.run_VIA()
         if 'X_umap' in adata.obsm:
             v0.embedding = adata.obsm['X_umap'][:,:2]  

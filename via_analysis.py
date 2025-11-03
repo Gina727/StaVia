@@ -42,7 +42,6 @@ def run_via_analysis(adata, params, file_data = None):
         time_series = 'time-series' in data_categories
         use_velocity = 'rna-velocity' in data_categories
         do_spatial = 'spatial-temporal' in data_categories
-        do_cytometry = 'cytometry' in data_categories
 
         if file_data is not None: 
             time_series_file = file_data.get('time-upload')
@@ -51,9 +50,6 @@ def run_via_analysis(adata, params, file_data = None):
             root_upload_file = file_data.get('root-upload')
             true_label_file = file_data.get('csv-upload')
             spatial_coords_file = file_data.get('coords-upload')
-            cytometry_phase_file = file_data.get('cytometry-phase-upload')
-            cytometry_features_file = file_data.get('cytometry-features-upload')
-            print("getting data")
 
         results = {}
 
@@ -193,9 +189,6 @@ def run_via_analysis(adata, params, file_data = None):
             spatial_knn_trajectory = 0
             coords = None  
             spatial_weight = 0
-        
-        if do_cytometry:
-            print("Running cytometry analysis...")
     
         print('RUN VIA')
         v0 = via.VIA(adata.obsm['X_pca'][:,:ncomp], true_label = true_label, memory = memory,
@@ -214,10 +207,6 @@ def run_via_analysis(adata, params, file_data = None):
                     viagraph_decay = 1.0, 
                     preserve_disconnected=False,
                     do_spatial_knn=do_spatial, do_spatial_layout= do_spatial, spatial_coords = coords, spatial_knn=spatial_knn_trajectory)
-        print(f"DEBUG: root_user = {root_user}")
-        print(f"DEBUG: type = {type(root_user)}, len = {len(root_user)}")
-        print(f"DEBUG: values = {[type(x) for x in root_user]}")
-        print(f"DEBUG: adata.n_obs = {adata.n_obs}")
         v0.run_VIA()
         if 'X_umap' in adata.obsm:
             v0.embedding = adata.obsm['X_umap'][:,:2]  

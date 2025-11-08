@@ -267,7 +267,7 @@
                     <p>Or upload a .csv file: </p>
                     <input type="file" id="csv-upload" accept=".csv" style="display: none;">
                     <button onclick="document.getElementById('csv-upload').click()" class="btn-csv">Select CSV File</button>
-                    <div id="csv-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                    <div id="cytometry-upload-status" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
             </div>
 
             <!-- Parameters -->
@@ -364,7 +364,7 @@
                     <p>Or upload RNA velocity: </p>
                     <input type="file" id="root-upload" accept=".csv" style="display: none;">
                     <button onclick="document.getElementById('root-upload').click()" class="btn-csv">Select CSV File</button>
-                    <div id="root-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                    <div id="root-upload-status" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
 
                     <h3>VIA Embedding</h3>
                     <div class="form-group">
@@ -421,7 +421,7 @@
                         <p>Or upload a .csv file: </p>
                         <input type="file" id="time-upload" accept=".csv" style="display: none;">
                         <button onclick="document.getElementById('time-upload').click()" class="btn-csv">Select CSV File</button>
-                        <div id="time-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                        <div id="time-upload-status" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
                     </div>
                 </div>
             </li>
@@ -454,7 +454,7 @@
                         <p>Upload .csv file, n_cells x 2 (x and y coordinates of each cells): </p>
                         <input type="file" id="coords-upload" accept=".csv" style="display: none;">
                         <button onclick="document.getElementById('coords-upload').click()" class="btn-csv">Select CSV File</button>
-                        <div id="coords-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                        <div id="coords-upload-status" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
                     </div>
                 </div>
             </li>
@@ -496,9 +496,9 @@
                                             Requires gene_matrix to be provided too.
                                         </span>
                                     </span>
-                                    <input type="file" id="velocity-matrix-upload" accept=".csv" style="display: none;">
+                                    <input type="file" id="velocity-matrix-upload" accept=".csv" style="display: none;", class="hidden-input">
                                     <button onclick="document.getElementById('velocity-matrix-upload').click()" class="btn-csv">Select CSV File</button>
-                                    <div id="csv-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                                    <div id="velocity-matrix-upload-status" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
                                 </div>
 
                                 <div class="coll-child">
@@ -512,7 +512,7 @@
                                     </span>
                                     <input type="file" id="gene-matrix-upload" accept=".csv" style="display: none;">
                                     <button onclick="document.getElementById('gene-matrix-upload').click()" class="btn-csv">Select CSV File</button>
-                                    <div id="csv-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                                    <div id="gene-matrix-upload-status" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
                                 </div>
                             </div>
                         <h3>Adjust the preferred value of DPI</h3>
@@ -550,8 +550,6 @@
                     aria-hidden="true">
                     <div class = "centered-container">
                         <div class="pref-container4">
-                        <h3>Variable Input</h3>
-                        <p>Enter the gene to be plotted for expression level: </p>
                         <!-- <div class="form-group">
                             <span class="popup" data-popup-id="edge-popup">
                                 <span>var_names</span>
@@ -566,45 +564,16 @@
                             <div class="coll">
                                 <div class="coll-child">
                                     <span class="popup" data-popup-id="velo-popup">
-                                        <span class="head">velocity_matrix</span>
+                                        <span class="head">cytometry_feature_matrix</span>
                                         <span class="popuptext" id="velo-popup">
-                                            Cell-phase file is used to label the feature matrix. M1 denotes G1 phase, M2 denotes S phase and M3 denotes M/G2 phase.
+                                            Please upload your cytometry feature matrix.
                                         </span>
                                     </span>
-                                    <input type="file" id="velocity-matrix-upload" accept=".csv" style="display: none;">
-                                    <button onclick="document.getElementById('velocity-matrix-upload').click()" class="btn-csv">Select CSV File</button>
-                                    <div id="csv-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
-                                </div>
-
-                                <div class="coll-child">
-                                    <span class="popup" data-popup-id="gene-popup">
-                                        <span class="head">gene_matrix</span>
-                                        <span class="popuptext" id="gene-popup">
-                                            Only used if Velocity_matrix is available. matrix of size [n_samples x n_genes]. 
-                                            Recommended to use a subset like HVGs rather than full set of genes. Require to densify 
-                                            input if taking from adata = adata.X.todense()
-                                        </span>
-                                    </span>
-                                    <input type="file" id="gene-matrix-upload" accept=".csv" style="display: none;">
-                                    <button onclick="document.getElementById('gene-matrix-upload').click()" class="btn-csv">Select CSV File</button>
-                                    <div id="csv-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                                    <input type="file" id="cytometry-upload" accept=".csv" style="display: none;">
+                                    <button onclick="document.getElementById('cytometry-upload').click()" class="btn-csv">Select CSV File</button>
+                                    <div id="csv-filename" class="file-status" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
                                 </div>
                             </div>
-                        <h3>Adjust the preferred value of DPI</h3>
-                            <ul id="filter1" class="filter-switch">
-                                <li class="filter-switch-item">
-                                    <input type="radio" name="dpi-option" id="dpi-low" class="sr-only" value="80" checked>
-                                    <label for="dpi-low" class="dpi">Low (80dpi)</label>
-                                </li>
-                                <li class="filter-switch-item">
-                                    <input type="radio" name="dpi-option" id="dpi-medium" value="120" class="sr-only">
-                                    <label for="dpi-medium" class="dpi">Medium (120dpi)</label>
-                                </li>
-                                <li class="filter-switch-item">
-                                    <input type="radio" name="dpi-option" id="dpi-high" value="300" class="sr-only">
-                                    <label for="dpi-high" class="dpi">High (300dpi)</label>
-                                </li>
-                            </ul>
                         </div>
                     </div>
                 </div>
@@ -934,7 +903,7 @@
             <!-- Copyright -->
     </footer>
 
-<script>
+<script>    
     document.addEventListener('DOMContentLoaded', function() {
     
     const fileInputH5ad = document.getElementById('fileInputH5ad');
@@ -942,6 +911,7 @@
     const fileInputBarcodes = document.getElementById('fileInputBarcodes');
     const fileInputGenes = document.getElementById('fileInputGenes');
     const fileInputAnno = document.getElementById('fileInputAnno');
+    const fileInputCytometry = document.getElementById('fileInputCytometry');
     
     
     const dropAreaH5ad = document.getElementById('dropAreaH5ad');
@@ -1059,6 +1029,11 @@
         updateFileStatus('anno', this.files[0]);
     });
 
+    fileInputCytometry.addEventListener('change', function() {
+        updateFileStatus('cytometry', this.files[0]);
+        handleFileSelection();
+    });
+
     document.querySelectorAll('pre').forEach(pre => {
     try {
       const data = JSON.parse(pre.textContent);
@@ -1158,6 +1133,8 @@
             formData.append('anno', annoFile);
         }
 
+        
+
         console.log("FormData contents:"); 
         for (let [key, value] of formData.entries()) {
             console.log(key, value.name || value);
@@ -1227,6 +1204,43 @@
         updatePreview();
     });
 
+    function setupFileUpload(fileInputId, statusDivId) {
+            const fileInput = document.getElementById(fileInputId);
+            const statusDiv = document.getElementById(statusDivId);
+
+            if (fileInput && statusDiv) {
+                fileInput.addEventListener('change', function() {
+                    if (this.files.length > 0) {
+                        statusDiv.textContent = 'Selected file: ' + this.files[0].name;
+                        statusDiv.style.color = '#333';
+                    } else {
+                        statusDiv.textContent = 'No CSV file selected';
+                        statusDiv.style.color = '#666';
+                    }
+                });
+            }
+        }
+
+        // Setup for the CSV upload in the 'Choice of Labels' section
+        setupFileUpload('csv-upload', 'cytometry-upload-status');
+        // Setup for the CSV upload in the 'Choice of Root Cell' section
+        setupFileUpload('root-upload', 'root-upload-status');
+        // Setup for the CSV upload in the 'Time-Series' tab
+        setupFileUpload('time-upload', 'time-upload-status');
+        // Setup for the CSV upload in the 'Spatial-Temporal' tab
+        setupFileUpload('coords-upload', 'coords-upload-status');
+        // Setup for the CSV upload (velocity matrix) in the 'RNA Velocity' tab
+        setupFileUpload('velocity-matrix-upload', 'velocity-matrix-upload-status');
+        // Setup for the CSV upload (gene matrix) in the 'RNA Velocity' tab
+        setupFileUpload('gene-matrix-upload', 'gene-matrix-upload-status');
+        // Setup for the CSV upload in the 'Cytometry' tab
+        setupFileUpload('cytometry-upload', 'csv-filename');
+        setupFileUpload('fileInputH5ad', 'h5ad-status');
+        setupFileUpload('fileInputMtx', 'mtx-status');
+        setupFileUpload('fileInputBarcodes', 'barcodes-status');
+        setupFileUpload('fileInputGenes', 'genes-status');
+        setupFileUpload('fileInputAnno', 'anno-status');
+
     document.getElementById('analyzeBtn').addEventListener('click', function() {
 
         const params = {
@@ -1257,12 +1271,13 @@
         }
         
         const optionalFiles = [
-            'time-upload', 
-            'velocity-matrix-upload', 
-            'gene-matrix-upload', 
-            'root-upload',
-            'csv-upload',
-            'coords-upload'
+            'time-upload-status', 
+            'velocity-matrix-upload-status', 
+            'gene-matrix-upload-status', 
+            'root-upload-status',
+            'csv-upload-status',
+            'coords-upload-status',
+            'cytometry-upload-status'
         ];
         
         optionalFiles.forEach(fileId => {
@@ -1270,6 +1285,11 @@
             if (fileInput.files[0]) {
                 formData.append(fileId, fileInput.files[0]);
             }
+            if (fileInput) {
+                fileInput.addEventListener('change', function() {
+                updateFileStatus(fileId, this.files[0]);
+                });
+             }
         });
 
         const analyzeBtn = document.getElementById('analyzeBtn');

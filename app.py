@@ -432,7 +432,7 @@ def analyze(adata):
 
         # Saving files other than the main oens 
         file_data = {}
-        for file_type in ['time-upload', 'velocity-matrix-upload', 'gene-matrix-upload', 'root-upload', 'csv-upload']:
+        for file_type in ['time-upload', 'velocity-matrix-upload', 'gene-matrix-upload', 'root-upload', 'csv-upload', 'cytometry-upload']:
             if file_type in request.files:
                 file = request.files[file_type]
                 if file.filename != '':

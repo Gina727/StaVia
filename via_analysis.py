@@ -42,6 +42,7 @@ def run_via_analysis(adata, params, file_data = None):
         time_series = 'time-series' in data_categories
         use_velocity = 'rna-velocity' in data_categories
         do_spatial = 'spatial-temporal' in data_categories
+        do_cytometry = 'cytometry' in data_categories
 
         if file_data is not None: 
             time_series_file = file_data.get('time-upload')
@@ -50,6 +51,7 @@ def run_via_analysis(adata, params, file_data = None):
             root_upload_file = file_data.get('root-upload')
             true_label_file = file_data.get('csv-upload')
             spatial_coords_file = file_data.get('coords-upload')
+            cytometry_file = file_data.get('cytometry-upload')
 
         results = {}
 
@@ -130,7 +132,9 @@ def run_via_analysis(adata, params, file_data = None):
                 # Random the gene if None
                 gene = random.choice(adata.var_names.tolist())
                 root_user = [adata[:, gene].X.argmax()]
-        
+        if cytometry_file:
+            print("Reading cytometry files")
+
         # INITIALIZE PARAMETERS
         n_pcs = 50
         ncomp = 50 
@@ -141,9 +145,9 @@ def run_via_analysis(adata, params, file_data = None):
         random_seed = 0
 
         if time_series: 
-            time_series_labels=time_series_labels
+            time_series_labels = time_series_labels
         else:
-            time_series_labels=None
+            time_series_labels = None
 
         if use_velocity:
             if velocity_matrix_file:
@@ -163,7 +167,7 @@ def run_via_analysis(adata, params, file_data = None):
             else: 
                 print('Please upload velocity matrix file')
         else: 
-            gene_matrix =None
+            gene_matrix = None
             velocity_matrix = None
             velo_weight=0
 
@@ -190,6 +194,12 @@ def run_via_analysis(adata, params, file_data = None):
             coords = None  
             spatial_weight = 0
     
+        if do_cytometry:
+            true_label = pd.read_csv(cytometry_file) #phase csv
+            true_label = list(true_label['phase'].values.flatten())
+            
+
+
         print('RUN VIA')
         v0 = via.VIA(adata.obsm['X_pca'][:,:ncomp], true_label = true_label, memory = memory,
                     edgepruning_clustering_resolution=edgepruning_clustering_resolution, 

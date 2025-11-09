@@ -132,8 +132,6 @@ def run_via_analysis(adata, params, file_data = None):
                 # Random the gene if None
                 gene = random.choice(adata.var_names.tolist())
                 root_user = [adata[:, gene].X.argmax()]
-        if cytometry_file:
-            print("Reading cytometry files")
 
         # INITIALIZE PARAMETERS
         n_pcs = 50
@@ -193,10 +191,103 @@ def run_via_analysis(adata, params, file_data = None):
             spatial_knn_trajectory = 0
             coords = None  
             spatial_weight = 0
-    
+        
         if do_cytometry:
-            true_label = pd.read_csv(cytometry_file) #phase csv
-            true_label = list(true_label['phase'].values.flatten())
+            print(f"Type of cytometry_file: {type(cytometry_file)}")
+            try:
+                cytometry = cytometry_file
+                print(f'Loaded cytometry file with shape: {cytometry.shape}')
+                
+                # Debug: Check what we're working with
+                print(f"Columns type: {type(cytometry.columns)}")
+                print(f"First few columns: {cytometry.columns[:5].tolist()}")
+                
+                # Create AnnData object with explicit parameters
+                ad = sc.AnnData(X=cytometry.values, dtype=cytometry.values.dtype)
+                print(f'Created AnnData with shape: {ad.shape}')
+                
+                # Set variable names - ensure it's a list
+                if hasattr(cytometry.columns, 'tolist'):
+                    var_names = cytometry.columns.tolist()
+                else:
+                    var_names = list(cytometry.columns)
+                
+                ad.var_names = var_names
+                print(f'Set var_names, type: {type(ad.var_names)}')
+                
+                # Set observation names
+                obs_names = [f"cell_{i}" for i in range(cytometry.shape[0])]
+                ad.obs_names = obs_names
+                
+                # Verify the object
+                print(f'AnnData X shape: {ad.X.shape}')
+                print(f'AnnData var_names length: {len(ad.var_names)}')
+                print(f'AnnData obs_names length: {len(ad.obs_names)}')
+                
+                # Continue with processing
+                sc.pp.scale(ad)
+                sc.tl.pca(ad, svd_solver='arpack')
+                print(f'PCA is finished')
+                
+                X_in = ad.X
+                cytometry_X = pd.DataFrame(X_in, columns=var_names)
+                
+                X_in = cytometry_X.values
+                
+                # Create new AnnData for processed data
+                ad_processed = sc.AnnData(X=cytometry_X.values, dtype=cytometry_X.values.dtype)
+                ad_processed.var_names = var_names
+                ad_processed.obs_names = obs_names[:cytometry_X.shape[0]]  # Adjust if needed
+                
+                sc.tl.pca(ad_processed, svd_solver='arpack')
+                print(f'End cytometry input')
+
+            except Exception as e:
+                print(f"Error processing cytometry CSV: {e}")
+                import traceback
+                traceback.print_exc()  # This will show in server logs
+                knn = 20
+                jac_std_global = 0.5
+                random_seed = 1
+                root_user = None
+        # if do_cytometry:
+            # try: 
+            #     root_user = []
+            #     reader = csv.reader(cytometry_file)
+            #     for row in reader:
+            #         if row:  
+            #             root_user.append(row[0])  
+            #     if all(item.lstrip('-').isdigit() for item in root_user):
+            #         root_user = [int(item) for item in root_user]
+            # except Exception as e:
+            #     print(f"Error processing cytometry file CSV: {e}")
+            #     root_user = None
+            # try:
+            #     cytometry = pd.read_csv(cytometry_file)
+            #     print(f'Loaded file')
+            #     ad = sc.AnnData(cytometry)
+            #     print(f'changed to anndata')
+            #     ad.var_names = cytometry.columns
+            #     sc.pp.scale(ad)
+            #     sc.tl.pca(ad, svd_solver='arpack')
+            #     print(f'PCA is finished')
+            #     X_in = ad.X
+            #     cytometry_X = pd.DataFrame(X_in)
+            #     cytometry_X.columns = [i for i in ad.var_names]
+            #     X_in = cytometry_X.values
+            #     ad = sc.AnnData(cytometry_X)
+            #     sc.tl.pca(ad, svd_solver='arpack')
+            #     ad.var_names = cytometry_X.columns
+            #     # embedding = umap.UMAP().fit_transform(ad.obsm['X_pca'][:, 0:20])
+                
+            #     print(f'end cytometry input')
+
+            # except Exception as e:
+            #     print(f"Error processing cytometry CSV: {e}")
+            #     knn=20
+            #     jac_std_global = 0.5
+            #     random_seed = 1
+            #     root_user = None
             
 
 
@@ -217,6 +308,7 @@ def run_via_analysis(adata, params, file_data = None):
                     viagraph_decay = 1.0, 
                     preserve_disconnected=False,
                     do_spatial_knn=do_spatial, do_spatial_layout= do_spatial, spatial_coords = coords, spatial_knn=spatial_knn_trajectory)
+        
         v0.run_VIA()
         if 'X_umap' in adata.obsm:
             v0.embedding = adata.obsm['X_umap'][:,:2]  

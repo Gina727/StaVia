@@ -430,7 +430,7 @@ def analyze(adata):
             'par_option': request.form.getlist('par-option')
         }
 
-        # Saving files other than the main oens 
+        # Saving files other than the main ones 
         file_data = {}
         for file_type in ['time-upload', 'velocity-matrix-upload', 'gene-matrix-upload', 'root-upload', 'csv-upload', 'cytometry-upload']:
             if file_type in request.files:

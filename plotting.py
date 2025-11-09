@@ -260,6 +260,11 @@ def via_plot(params, v0, file_data):
                 plt.close()
                 plots['mds'] = "data:image/png;base64," + base64.b64encode(mds_img.getvalue()).decode('utf-8')
 
+        if do_cytomtetry: # embedding?
+            cyto_img = via.via_streamplot(via_object=v0, scatter_size=200, scatter_alpha=0.1, density_grid=.5, density_stream=1, smooth_transition=1) #you can choose to use either v1 or v0 as the input for the streamplot
+            plt.savefig(cyto_img, format='png', bbox_inches='tight', dpi=120)
+            plt.close()
+            plots['cyto'] = "data:image/png;base64," + base64.b64encode(cyto_img.getvalue()).decode('utf-8')
         # Return all the plots to the Flask app to be displayed on the frontend 
         return plots
     

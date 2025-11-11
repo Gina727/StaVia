@@ -195,7 +195,12 @@ def run_via_analysis(adata, params, file_data = None):
         if do_cytometry:
             print(f"Type of cytometry_file: {type(cytometry_file)}")
             try:
-                cytometry = cytometry_file
+                if 'Unnamed: 0' in cytometry_file.columns:
+                    cytometry = cytometry_file.drop('Unnamed: 0', axis=1)
+                else:
+                    cytometry = cytometry_file
+                
+                cytometry = cytometry.dropna()
                 print(f'Loaded cytometry file with shape: {cytometry.shape}')
                 
                 # Debug: Check what we're working with
@@ -250,45 +255,7 @@ def run_via_analysis(adata, params, file_data = None):
                 jac_std_global = 0.5
                 random_seed = 1
                 root_user = None
-        # if do_cytometry:
-            # try: 
-            #     root_user = []
-            #     reader = csv.reader(cytometry_file)
-            #     for row in reader:
-            #         if row:  
-            #             root_user.append(row[0])  
-            #     if all(item.lstrip('-').isdigit() for item in root_user):
-            #         root_user = [int(item) for item in root_user]
-            # except Exception as e:
-            #     print(f"Error processing cytometry file CSV: {e}")
-            #     root_user = None
-            # try:
-            #     cytometry = pd.read_csv(cytometry_file)
-            #     print(f'Loaded file')
-            #     ad = sc.AnnData(cytometry)
-            #     print(f'changed to anndata')
-            #     ad.var_names = cytometry.columns
-            #     sc.pp.scale(ad)
-            #     sc.tl.pca(ad, svd_solver='arpack')
-            #     print(f'PCA is finished')
-            #     X_in = ad.X
-            #     cytometry_X = pd.DataFrame(X_in)
-            #     cytometry_X.columns = [i for i in ad.var_names]
-            #     X_in = cytometry_X.values
-            #     ad = sc.AnnData(cytometry_X)
-            #     sc.tl.pca(ad, svd_solver='arpack')
-            #     ad.var_names = cytometry_X.columns
-            #     # embedding = umap.UMAP().fit_transform(ad.obsm['X_pca'][:, 0:20])
-                
-            #     print(f'end cytometry input')
-
-            # except Exception as e:
-            #     print(f"Error processing cytometry CSV: {e}")
-            #     knn=20
-            #     jac_std_global = 0.5
-            #     random_seed = 1
-            #     root_user = None
-            
+        
 
 
         print('RUN VIA')

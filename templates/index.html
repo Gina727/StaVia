@@ -167,9 +167,9 @@
                         <span class="toggle-label">PCA</span>
                     </label>
                     <label class="toggle">
-                        <input type="checkbox" class="toggle-checkbox" name="em-option" value="parc">
+                        <input type="checkbox" class="toggle-checkbox" name="em-option" value="phate">
                         <div class="toggle-switch"></div>
-                        <span class="toggle-label">PARC</span>
+                        <span class="toggle-label">PHATE</span>
                     </label>
 
                     <div class="form-group">
@@ -207,8 +207,8 @@
                             <img id="umap-plot" style="max-width: 100%; display: none;">
                         </div> 
                         
-                        <div id="parc-container" style="display: none;">
-                            <img id="parc-plot" style="max-width: 100%; display: none;">
+                        <div id="phate-container" style="display: none;">
+                            <img id="phate-plot" style="max-width: 100%; display: none;">
                         </div> 
                     </div>
                 </div>
@@ -245,10 +245,15 @@
                         <div class="toggle-switch"></div>
                         <span class="toggle-label">Spatial-Temporal</span>
                     </label>
+                    <label class="toggle">
+                        <input type="checkbox" class="toggle-checkbox" name="par-option" value="cytometry">
+                        <div class="toggle-switch"></div>
+                        <span class="toggle-label">Cytometry</span>
+                    </label>
                     
                     <h3>Choice of Labels</h3>
                     <p>Enter label here: </p>
-                    <div class="form-group">
+                    <div class="form-group" style="margin-top: -10px">
                         <span class="popup" data-popup-id="edge-popup">
                             <span>true_label</span>
                             <span class="popuptext" id="edge-popup">
@@ -256,13 +261,13 @@
                                 Can also be None when no labels are available.
                             </span>
                         </span>
-                        <input class="form-field" type="text" placeholder="None" name="true_label" value="None" id="true_label_input">
+                        <input class="form-field"  type="text" placeholder="None" name="true_label" value="None" id="true_label_input">
                     </div>
 
                     <p>Or upload a .csv file: </p>
                     <input type="file" id="csv-upload" accept=".csv" style="display: none;">
-                    <button onclick="document.getElementById('csv-upload').click()" class="btn-csv">Select CSV File</button>
-                    <div id="csv-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                    <button style="margin-top: -10px" onclick="document.getElementById('csv-upload').click()" class="btn-csv">Select CSV File</button>
+                    <div id="csv-upload-status" style="margin-top: -10px; font-size: 0.9em; color: #666;">No CSV file selected</div>
             </div>
 
             <!-- Parameters -->
@@ -359,7 +364,7 @@
                     <p>Or upload RNA velocity: </p>
                     <input type="file" id="root-upload" accept=".csv" style="display: none;">
                     <button onclick="document.getElementById('root-upload').click()" class="btn-csv">Select CSV File</button>
-                    <div id="root-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                    <div id="root-upload-status" style="margin-top: -10px; font-size: 0.9em; color: #666;">No CSV file selected</div>
 
                     <h3>VIA Embedding</h3>
                     <div class="form-group">
@@ -416,7 +421,7 @@
                         <p>Or upload a .csv file: </p>
                         <input type="file" id="time-upload" accept=".csv" style="display: none;">
                         <button onclick="document.getElementById('time-upload').click()" class="btn-csv">Select CSV File</button>
-                        <div id="time-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                        <div id="time-upload-status" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
                     </div>
                 </div>
             </li>
@@ -449,7 +454,7 @@
                         <p>Upload .csv file, n_cells x 2 (x and y coordinates of each cells): </p>
                         <input type="file" id="coords-upload" accept=".csv" style="display: none;">
                         <button onclick="document.getElementById('coords-upload').click()" class="btn-csv">Select CSV File</button>
-                        <div id="coords-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                        <div id="coords-upload-status" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
                     </div>
                 </div>
             </li>
@@ -491,9 +496,9 @@
                                             Requires gene_matrix to be provided too.
                                         </span>
                                     </span>
-                                    <input type="file" id="velocity-matrix-upload" accept=".csv" style="display: none;">
+                                     <input type="file" id="velocity-matrix-upload" accept=".csv, .loom, .h5ad" style="display: none;">
                                     <button onclick="document.getElementById('velocity-matrix-upload').click()" class="btn-csv">Select CSV File</button>
-                                    <div id="csv-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                                    <div id="velocity-matrix-upload-status" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
                                 </div>
 
                                 <div class="coll-child">
@@ -507,7 +512,7 @@
                                     </span>
                                     <input type="file" id="gene-matrix-upload" accept=".csv" style="display: none;">
                                     <button onclick="document.getElementById('gene-matrix-upload').click()" class="btn-csv">Select CSV File</button>
-                                    <div id="csv-filename" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                                    <div id="gene-matrix-upload-status" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
                                 </div>
                             </div>
                         <h3>Adjust the preferred value of DPI</h3>
@@ -525,6 +530,41 @@
                                     <label for="dpi-high" class="dpi">High (300dpi)</label>
                                 </li>
                             </ul>
+                        </div>
+                    </div>
+                </div>
+            </li>
+
+            <!-- Fourth Tab -->
+            <li>
+                <input type="radio" name="tabs" id="tab4" value="cytometry"/>
+                <label for="tab4"
+                    role="tab" 
+                    aria-selected="false" 
+                    aria-controls="panel2" 
+                    tabindex="0" class="tab-label">Cytometry</label>
+                <div id="tab-content4" 
+                    class="tab-content"
+                    role="tabpanel" 
+                    aria-labelledby="specification" 
+                    aria-hidden="true">
+                    <div class = "centered-container">
+                        <div class="pref-container4">
+
+                            <p>File upload for user: </p>
+                            <div class="coll">
+                                <div class="coll-child">
+                                    <span class="popup" data-popup-id="velo-popup">
+                                        <span class="head">cytometry_feature_matrix</span>
+                                        <span class="popuptext" id="velo-popup">
+                                            Please upload your cytometry feature matrix.
+                                        </span>
+                                    </span>
+                                    <input type="file" id="cytometry-upload" accept=".csv" style="display: none;">
+                                    <button onclick="document.getElementById('cytometry-upload').click()" class="btn-csv">Select CSV File</button>
+                                    <div id="cytometry-upload-status" class="file-status" style="margin-top: 5px; font-size: 0.9em; color: #666;">No CSV file selected</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -854,7 +894,43 @@
             <!-- Copyright -->
     </footer>
 
-<script>
+<script>    
+    function setupFileUpload(fileInputId, statusDivId) {
+            const fileInput = document.getElementById(fileInputId);
+            const statusDiv = document.getElementById(statusDivId);
+
+            if (fileInput && statusDiv) {
+                fileInput.addEventListener('change', function() {
+                    if (this.files.length > 0) {
+                        statusDiv.textContent = 'Selected file: ' + this.files[0].name;
+                        statusDiv.style.color = '#333';
+                    } else {
+                        statusDiv.textContent = 'No CSV file selected';
+                        statusDiv.style.color = '#666';
+                    }
+                });
+            }
+        }
+
+        // Setup for the CSV upload in the 'Choice of Labels' section
+        setupFileUpload('csv-upload', 'csv-upload-status');
+        // Setup for the CSV upload in the 'Choice of Root Cell' section
+        setupFileUpload('root-upload', 'root-upload-status');
+        // Setup for the CSV upload in the 'Time-Series' tab
+        setupFileUpload('time-upload', 'time-upload-status');
+        // Setup for the CSV upload in the 'Spatial-Temporal' tab
+        setupFileUpload('coords-upload', 'coords-upload-status');
+        // Setup for the CSV upload (velocity matrix) in the 'RNA Velocity' tab
+        setupFileUpload('velocity-matrix-upload', 'velocity-matrix-upload-status');
+        // Setup for the CSV upload (gene matrix) in the 'RNA Velocity' tab
+        setupFileUpload('gene-matrix-upload', 'gene-matrix-upload-status');
+        // Setup for the CSV upload in the 'Cytometry' tab
+        setupFileUpload('cytometry-upload', 'cytometry-upload-status');
+        setupFileUpload('fileInputH5ad', 'h5ad-status');
+        setupFileUpload('fileInputMtx', 'mtx-status');
+        setupFileUpload('fileInputBarcodes', 'barcodes-status');
+        setupFileUpload('fileInputGenes', 'genes-status');
+        setupFileUpload('fileInputAnno', 'anno-status');
     document.addEventListener('DOMContentLoaded', function() {
     
     const fileInputH5ad = document.getElementById('fileInputH5ad');
@@ -862,6 +938,7 @@
     const fileInputBarcodes = document.getElementById('fileInputBarcodes');
     const fileInputGenes = document.getElementById('fileInputGenes');
     const fileInputAnno = document.getElementById('fileInputAnno');
+    const fileInputCytometry = document.getElementById('fileInputCytometry');
     
     
     const dropAreaH5ad = document.getElementById('dropAreaH5ad');
@@ -1078,6 +1155,8 @@
             formData.append('anno', annoFile);
         }
 
+        
+
         console.log("FormData contents:"); 
         for (let [key, value] of formData.entries()) {
             console.log(key, value.name || value);
@@ -1182,7 +1261,8 @@
             'gene-matrix-upload', 
             'root-upload',
             'csv-upload',
-            'coords-upload'
+            'coords-upload',
+            'cytometry-upload'
         ];
         
         optionalFiles.forEach(fileId => {
@@ -1190,6 +1270,11 @@
             if (fileInput.files[0]) {
                 formData.append(fileId, fileInput.files[0]);
             }
+            if (fileInput) {
+                fileInput.addEventListener('change', function() {
+                updateFileStatus(fileId, this.files[0]);
+                });
+             }
         });
 
         const analyzeBtn = document.getElementById('analyzeBtn');
@@ -1257,7 +1342,7 @@
         const analysisPlotTypes = [
             'atlas', 'via', 'line', 'per', 'em', 
             'grid', 'stream', 'vel', 'cl', 'mds',
-            'pca', 'umap', 'parc', 'lineage', 'heat', 'exp'
+            'pca', 'umap', 'phate', 'lineage', 'heat', 'exp'
         ];
 
         analysisPlotTypes.forEach(plotType => {
@@ -1666,12 +1751,12 @@
             document.getElementById('umap-container').style.display = 'none';
         }
 
-        if (data.plots?.parc) {
-            document.getElementById('parc-plot').src = data.plots.parc;
-            document.getElementById('parc-plot').style.display = 'block';
-            document.getElementById('parc-container').style.display = 'block';
+        if (data.plots?.phate) {
+            document.getElementById('phate-plot').src = data.plots.phate;
+            document.getElementById('phate-plot').style.display = 'block';
+            document.getElementById('phate-container').style.display = 'block';
         } else {
-            document.getElementById('parc-container').style.display = 'none';
+            document.getElementById('phate-container').style.display = 'none';
         }
     }
 });
@@ -1680,5 +1765,4 @@
 </body>
 
 </html>
-
 

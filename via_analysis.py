@@ -53,6 +53,7 @@ def run_via_analysis(adata, params, file_data = None):
 
         results = {}
 
+        true_label = None
         if true_label_file:
             try:
                 true_label = []
@@ -67,9 +68,9 @@ def run_via_analysis(adata, params, file_data = None):
                 true_label = None
         else: 
             if true_label and isinstance(true_label, str):
-                if true_label.lower() == 'none':
+                if true_label.lower() == 'none' and adata_obs.lower() == 'none':
                     true_label = None
-                else:
+                elif true_label.lower() != 'none' and adata_obs.lower() == 'none':
                     try:
                         true_label = [item.strip() for item in true_label.split(',')]
                         if all(item.lstrip('-').isdigit() for item in true_label):
@@ -77,12 +78,13 @@ def run_via_analysis(adata, params, file_data = None):
                     except Exception as e:
                         print(f"Error processing true_label: {e}")
                         true_label = None
-        
-        if adata_obs and isinstance(adata_obs, str) and true_label is None:
-            if adata_obs.lower() == 'none':
-                true_label = None
-            else: 
-                true_label = adata.obs[adata_obs]
+                else:
+                    if "annotation" in adata.obs:
+                        true_label = adata.obs["annotation"]
+                    if "PARC" in adata.obs:
+                        true_label = adata.obs["PARC"]
+                    else: 
+                        true_label = adata.obs[adata_obs]
 
         if time_series_file:
             try:
@@ -127,6 +129,9 @@ def run_via_analysis(adata, params, file_data = None):
             elif not root_user or str(root_user).lower() == 'none':
                 # Random the gene if None
                 gene = random.choice(adata.var_names.tolist())
+                print(f"DEBUG: Selected random gene: '{gene}'")
+                print(f"DEBUG: Gene type: {type(gene)}")
+                print(f"DEBUG: Gene in var_names? {gene in adata.var_names}")
                 root_user = [adata[:, gene].X.argmax()]
         
         # INITIALIZE PARAMETERS
@@ -143,16 +148,111 @@ def run_via_analysis(adata, params, file_data = None):
         else:
             time_series_labels=None
 
+        velocity_matrix = None
+        gene_matrix = adata.X.todense() if hasattr(adata.X, 'todense') else adata.X
+        velo_weight = 0
+
         if use_velocity:
-            velocity_matrix = pd.read_csv(velocity_matrix_file)
-            velocity_matrix = velocity_matrix_file.values
-            gene_matrix = pd.read_csv(gene_matrix_file)
-            adata.X = gene_matrix.values
-            velo_weight=0.5
-        else: 
-            gene_matrix =None
-            velocity_matrix = None
-            velo_weight=0
+            velo_weight = 0.5
+            if velocity_matrix_file is not None:
+                try: 
+                    velocity_df = velocity_matrix_file 
+                    
+                    # Clean velocity cell names
+                    # velocity_df.index = [
+                    #     name.replace('Het_CR_outs:', '').replace('x', '-1') 
+                    #     for name in velocity_df.index
+                    # ]
+                    
+                    # Find common cells
+                    common_cells = velocity_df.index.intersection(adata.obs_names)
+                    print(f"Common cells: {len(common_cells)}")
+                    
+                    if len(common_cells) == 0:
+                        print("✗ No common cells - disabling velocity")
+                        raise ValueError("No common cells between velocity and adata")
+                    
+                    # Filter to common cells
+                    velocity_df = velocity_df.loc[common_cells]
+                    adata = adata[common_cells]
+                    
+                    # Match genes
+                    print(f"Velocity shape: {velocity_df.shape}")
+                    print(f"Adata shape: {adata.shape}")
+                    
+                    # Get the CURRENT adata gene names (after preprocessing filtering)
+                    adata_genes = set(adata.var_names)
+                    
+                    # Check if velocity has column names
+                    if hasattr(velocity_df, 'columns') and len(velocity_df.columns) > 0:
+                        velocity_genes = set(velocity_df.columns)
+                        
+                        print(f"Adata genes: {len(adata_genes)}")
+                        print(f"Velocity genes: {len(velocity_genes)}")
+                        
+                        # Find intersection - only genes that exist in BOTH
+                        common_genes = list(adata_genes.intersection(velocity_genes))
+                        print(f"Common genes: {len(common_genes)}")
+                        
+                        # Find what's different
+                        missing_from_adata = velocity_genes - adata_genes
+                        missing_from_velocity = adata_genes - velocity_genes
+                        
+                        if missing_from_adata:
+                            print(f"Genes in velocity but NOT in filtered adata: {len(missing_from_adata)}")
+                            print(f"  Sample: {list(missing_from_adata)[:5]}")
+                        
+                        if missing_from_velocity:
+                            print(f"Genes in filtered adata but NOT in velocity: {len(missing_from_velocity)}")
+                            print(f"  Sample: {list(missing_from_velocity)[:5]}")
+                        
+                        if len(common_genes) == 0:
+                            print("No common genes - disabling velocity")
+                            raise ValueError("No common genes between velocity and adata")
+                        
+                        # Filter BOTH to common genes
+                        velocity_df = velocity_df[common_genes]
+                        adata = adata[:, common_genes]  # This is important!
+                        
+                        print(f"After gene filtering: velocity {velocity_df.shape}, adata {adata.shape}")
+                        
+                    else:
+                        print("ERROR: Velocity DataFrame has no column names!")
+                        print("Cannot match genes without column names")
+                        raise ValueError("Velocity matrix missing gene names")
+                    
+                    # Convert to numpy arrays for VIA
+                    velocity_matrix = velocity_df.values
+                    gene_matrix = adata.X.todense() if hasattr(adata.X, 'todense') else adata.X
+                    
+                    # Final validation
+                    print(f"\n=== FINAL CHECK ===")
+                    print(f"Velocity matrix shape: {velocity_matrix.shape}")
+                    print(f"Gene matrix shape: {gene_matrix.shape}")
+                    print(f"adata.X shape: {adata.X.shape}")
+                    
+                    if velocity_matrix.shape != gene_matrix.shape:
+                        print("Final shape mismatch!")
+                        print("  Forcing alignment by taking first n genes...")
+                        
+                        min_genes = min(velocity_matrix.shape[1], gene_matrix.shape[1])
+                        velocity_matrix = velocity_matrix[:, :min_genes]
+                        gene_matrix = gene_matrix[:, :min_genes]
+                        adata = adata[:, :min_genes]
+                        
+                        print(f"  After emergency fix: velocity {velocity_matrix.shape}, gene {gene_matrix.shape}")
+                        velo_weight = 0.5
+                    else:
+                        print("All dimensions match!")
+                        velo_weight = 0.5
+                        
+                except Exception as e: 
+                    print(f"Error loading velocity data: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    velocity_matrix = None
+                    gene_matrix = None
+                    velo_weight = 0
 
         if do_spatial:
             
@@ -196,13 +296,14 @@ def run_via_analysis(adata, params, file_data = None):
                     do_spatial_knn=do_spatial, do_spatial_layout= do_spatial, spatial_coords = coords, spatial_knn=spatial_knn_trajectory)
         v0.run_VIA()
         if 'X_umap' in adata.obsm:
-            v0.embedding = adata.obsm['X_umap'][:,:2]  
+            v0.embedding = adata.obsm['X_umap'][:,:2]
         elif 'X_pca' in adata.obsm:
-            v0.embedding = adata.obsm['X_pca'][:,:2] 
+            v0.embedding = adata.obsm['X_pca'][:,:2]
         results['via_obj'] = v0
+
+        results['adata'] = adata
 
         return results
     
     except Exception as e:
-
         return {'error': str(e)}

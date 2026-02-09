@@ -74,10 +74,14 @@ def more_plot(lineages, genes, v0, adata):
     except Exception as e:
         return {'error': str(e)}
 
-# General VIA Plots
-def via_plot(params, v0, file_data):
+def via_plot(params, v0, file_data, adata=None):
     try: 
-        # Get all the parameters and files from Flask 
+        print("=== VIA_PLOT FUNCTION START ===")
+        print(f"v0 is None: {v0 is None}")
+        print(f"adata is None: {adata is None}")
+        print(f"params keys: {list(params.keys())}")
+        print(f"file_data keys: {list(file_data.keys()) if file_data else 'None'}")
+
         var_names = params.get('var_names', None)
         dpi = int(params.get('dpi', 180))
         time_series_labels = params.get('time_series_labels', None)
@@ -93,7 +97,6 @@ def via_plot(params, v0, file_data):
 
         if file_data is not None: 
             time_series_file = file_data.get('time-upload')
-            velocity_matrix_file = file_data.get('velocity-matrix-upload')
             true_label_file = file_data.get('csv-upload')
 
         if time_series_file:
@@ -185,53 +188,92 @@ def via_plot(params, v0, file_data):
         
         # Plot this if the user ticks 'RNA Velocity'
         if use_velocity: 
-            adata = sc.read(velocity_matrix_file)
-            if var_names == 'None':
-                var_names = np.random.choice(adata.var_names)
-                print(f"Randomly selected gene: {var_names}")
-            else:
-                if var_names not in adata.var_names:
-                    return {'error': f"Gene '{var_names}' not found in dataset"}, 400
-            print(adata)
-            print(adata.obs.columns.tolist())
+            try: 
+                velocity_adata = file_data.get('velocity_adata')
 
-            # Embedding on single-cell level 
-            scv.pl.velocity_embedding(adata, basis='umap', color='clusters', dpi=dpi, show=False)
-            em_img = BytesIO()
-            plt.savefig(em_img, format='png', bbox_inches='tight', dpi=dpi)
-            plt.close()
-            plots['em'] = "data:image/png;base64," + base64.b64encode(em_img.getvalue()).decode('utf-8')
+                if var_names == 'None':
+                    if len(velocity_adata.var_names) > 0:
+                        var_names = np.random.choice(velocity_adata.var_names)
+                        print(f"Randomly selected gene: {var_names}")
+                    else:
+                        print("ERROR: adata has no var_names!")
+                        var_names = None
+                print(velocity_adata)
+                print(velocity_adata.obs.columns.tolist())
 
-            scv.pl.velocity_embedding_grid(adata, basis='umap', color='clusters', scale=0.25, show=False)
-            grid_img = BytesIO()
-            plt.savefig(grid_img, format='png', bbox_inches='tight', dpi=dpi)
-            plt.close()
-            plots['grid'] = "data:image/png;base64," + base64.b64encode(grid_img.getvalue()).decode('utf-8')
+                obs_keys = list(velocity_adata.obs.columns)
+                if len(obs_keys) > 0:
+                    random_key = random.choice(obs_keys)
 
-            via.via_streamplot(via_object=v0, scatter_size=150, scatter_alpha=0.2,
-                    marker_edgewidth=0.05, density_stream=1.0, density_grid=0.5, smooth_transition=2,
-                    smooth_grid=0.5, color_scheme='annotation', add_outline_clusters=False,
-                    cluster_outline_edgewidth=0.001)
-            stream_img = BytesIO()
-            plt.savefig(stream_img, format='png', bbox_inches='tight', dpi=dpi)
-            plt.close()
-            plots['stream'] = "data:image/png;base64," + base64.b64encode(stream_img.getvalue()).decode('utf-8')
+                if 'neighbors' not in velocity_adata.uns:
+                    print("Computing neighbors")
+                    sc.pp.neighbors(velocity_adata, n_neighbors=30, n_pcs=30)
 
-            # Connection between the clusters
-            scv.pl.velocity_graph(adata, color='clusters', threshold=.3, show=False)
-            cl_img = BytesIO()
-            plt.savefig(cl_img, format='png', bbox_inches='tight', dpi=dpi)
-            plt.close()
-            plots['cl'] = "data:image/png;base64," + base64.b64encode(cl_img.getvalue()).decode('utf-8')
+                if 'X_umap' not in velocity_adata.obsm:
+                    print("Computing UMAP")
+                    sc.tl.umap(velocity_adata)
 
-            # RNA velocity and genetic expression level
-            scv.pl.velocity(adata, var_names=[var_names], color='clusters', show=False)
-            vel_img = BytesIO()
-            plt.savefig(vel_img, format='png', bbox_inches='tight', dpi=dpi)
-            plt.close()
-            plots['vel'] = "data:image/png;base64," + base64.b64encode(vel_img.getvalue()).decode('utf-8')
+                print("Computing moments...")
+                scv.pp.moments(velocity_adata, n_pcs=30, n_neighbors=30)
+                
+                print("Computing velocity...")
+                scv.tl.velocity(velocity_adata, mode='stochastic')  
+                
+                print("Computing velocity graph...")
+                scv.tl.velocity_graph(velocity_adata)
 
-        # Plot this if the user ticks "Spatio-Temporal"
+                print("Computing velocity embedding...")
+                scv.tl.velocity_embedding(velocity_adata, basis='umap')
+
+                if random_key:
+                    # Embedding on single-cell level 
+                    scv.pl.velocity_embedding(velocity_adata, basis='umap', color=random_key, dpi=dpi, show=False)
+                    em_img = BytesIO()
+                    plt.savefig(em_img, format='png', bbox_inches='tight', dpi=dpi)
+                    plt.close()
+                    plots['em'] = "data:image/png;base64," + base64.b64encode(em_img.getvalue()).decode('utf-8')
+
+                    scv.pl.velocity_embedding_grid(velocity_adata, basis='umap', color=random_key, scale=0.25, show=False)
+                    grid_img = BytesIO()
+                    plt.savefig(grid_img, format='png', bbox_inches='tight', dpi=dpi)
+                    plt.close()
+                    plots['grid'] = "data:image/png;base64," + base64.b64encode(grid_img.getvalue()).decode('utf-8')
+
+                    # Connection between the clusters
+                    scv.pl.velocity_graph(velocity_adata, color=random_key, threshold=.3, show=False)
+                    cl_img = BytesIO()
+                    plt.savefig(cl_img, format='png', bbox_inches='tight', dpi=dpi)
+                    plt.close()
+                    plots['cl'] = "data:image/png;base64," + base64.b64encode(cl_img.getvalue()).decode('utf-8')
+
+                    # RNA velocity and genetic expression level
+                    scv.pl.velocity(velocity_adata, var_names=[var_names], color=random_key, show=False)
+                    vel_img = BytesIO()
+                    plt.savefig(vel_img, format='png', bbox_inches='tight', dpi=dpi)
+                    plt.close()
+                    plots['vel'] = "data:image/png;base64," + base64.b64encode(vel_img.getvalue()).decode('utf-8')
+
+                via.via_streamplot(via_object=v0, scatter_size=150, scatter_alpha=0.2,
+                        marker_edgewidth=0.05, density_stream=1.0, density_grid=0.5, smooth_transition=2,
+                        smooth_grid=0.5, color_scheme='annotation', add_outline_clusters=False,
+                        cluster_outline_edgewidth=0.001)
+                stream_img = BytesIO()
+                plt.savefig(stream_img, format='png', bbox_inches='tight', dpi=dpi)
+                plt.close()
+                plots['stream'] = "data:image/png;base64," + base64.b64encode(stream_img.getvalue()).decode('utf-8')
+                
+            except Exception as e:
+                print(f"Velocity plotting failed: {e}")
+                # Create placeholder plot
+                plt.figure(figsize=(8, 6))
+                plt.text(0.5, 0.5, "Velocity plots unavailable\n" + str(e), 
+                        ha='center', va='center', fontsize=10, wrap=True)
+                plt.axis('off')
+                placeholder = BytesIO()
+                plt.savefig(placeholder, format='png', bbox_inches='tight', dpi=dpi)
+                plt.close()
+                plots['velocity_error'] = "data:image/png;base64," + base64.b64encode(placeholder.getvalue()).decode('utf-8')
+
         if do_spatial:
             # Cluster on tissue slice
             # fig,ax1, ax2 = via.plot_clusters_spatial(spatial_coords=coords, clusters = [7,11,27,30], color='black', 
@@ -260,22 +302,8 @@ def via_plot(params, v0, file_data):
                 plt.close()
                 plots['mds'] = "data:image/png;base64," + base64.b64encode(mds_img.getvalue()).decode('utf-8')
 
-        if do_cytomtetry:
-            print(f"Creating cytometry plot with VIA object shape: {v0.X.shape if hasattr(v0, 'X') else 'No X attribute'}")
-            print(f"VIA object labels: {v0.labels.shape if hasattr(v0, 'labels') else 'No labels'}")
-            
-            fig, ax = via.via_streamplot(via_object=v0, scatter_size=200, scatter_alpha=0.1, 
-                                        density_grid=.5, density_stream=1, smooth_transition=1)
-            
-            print(f"Created cytometry plot figure: {fig}")
-            
-            cyto_img = BytesIO()
-            fig.savefig(cyto_img, format='png', bbox_inches='tight', dpi=120)
-            plt.close(fig)
-            plots['cyto'] = "data:image/png;base64," + base64.b64encode(cyto_img.getvalue()).decode('utf-8')
-            print(f"Cytometry plot created and saved")
-        
-        # Return all the plots to the Flask app to be displayed on the frontend 
+        print(f"Total plots created: {len(plots)}")
+        print(f"Plot keys: {list(plots.keys())}")
         return plots
     
     except Exception as e:

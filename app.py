@@ -24,14 +24,18 @@ import uuid
 import gzip
 import shutil
 import parc
+import loompy
+import phate
+import anndata as ad
+from scipy import sparse
+from google.cloud import storage  # <-- ADD THIS
+from google.auth import default   # <-- ADD THIS
 
-
-# Initializing Flask App and the SQL database 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = '/app/instance/uploads'
-app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024 * 20
 db = SQLAlchemy(app)
 app.secret_key = os.urandom(24)
 
@@ -54,7 +58,6 @@ INITIAL_ADATA_CACHE = {}
 def clear_trailing():
     session.modified = True
 
-# Automatically cleans up temporary files when the program exits (reload page)
 def cleanup():
     try:
         shutil.rmtree(UPLOAD_FOLDER)
@@ -153,9 +156,6 @@ def upload():
 
         files = request.files
         
-        # Saving these files in temporary directories 
-
-        # For .h5ad files 
         if 'file' in files:  
             file = files['file']
             if not file.filename.lower().endswith('.h5ad'):
@@ -164,7 +164,7 @@ def upload():
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'uploaded_data_{unique_id}.h5ad')
             file.save(file_path)
             session['file_type'] = 'h5ad'
-        # For matrix.mtx, barcodes, and features files (names MUST be as specified below (convention))
+            
         else:  
             has_matrix = any(f for f in files if 'matrix' in f.lower())
             has_barcodes = any(f for f in files if 'barcodes' in f.lower())
@@ -199,7 +199,6 @@ def upload():
             session['file_type'] = '10x'
             print("Session file_type set to:", session['file_type'])
         
-        # Check if the annotation file is uploaded or not 
         annotation_data = None
         if 'anno' in files: 
             annotation_file = files['anno']
@@ -226,7 +225,6 @@ def upload():
         # Storing the file path in the user's session 
         session['file_path'] = file_path
         
-        # Retrieving Session data 
         file_path = session.get('file_path')
         file_type = session.get('file_type')
 
@@ -288,8 +286,232 @@ def upload():
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+def velocity_df_to_adata(velocity_df, adata_reference, common_genes=None, layer_name='velocity'):
+    
+    if velocity_df is None: 
+        return adata_reference
+    
+    print(f"=== velocity_df_to_adata START ===")
+    print(f"Input velocity_df shape: {velocity_df.shape}")
+    print(f"Input adata shape: {adata_reference.shape}")
+    
+    # Clean velocity cell names
+    velocity_df_cleaned = velocity_df.copy()
+    # velocity_df_cleaned.index = [
+    #     str(name).replace('Het_CR_outs:', '').replace('x', '-1') 
+    #     for name in velocity_df_cleaned.index
+    # ]
+    
+    # Clean adata cell names
+    adata_cleaned = adata_reference.copy()
+    # adata_cleaned.obs_names = [
+    #     str(name).replace('Het_CR_outs:', '').replace('x', '-1')
+    #     for name in adata_cleaned.obs_names
+    # ]
+    
+    # Find common cells
+    common_cells = list(velocity_df_cleaned.index.intersection(adata_cleaned.obs_names))
+    
+    if len(common_cells) == 0:
+        raise ValueError(f"No common cells found")
+    
+    # Use provided common_genes or calculate intersection
+    if common_genes is not None:
+        print(f"Using provided common_genes: {len(common_genes)} genes")
+        genes_to_use = list(set(common_genes).intersection(set(velocity_df_cleaned.columns)))
+    else:
+        genes_to_use = list(velocity_df_cleaned.columns.intersection(adata_cleaned.var_names))
+        print(f"Calculated common genes: {len(genes_to_use)} genes")
+    
+    # CHECK FOR DUPLICATE GENE NAMES IN VELOCITY
+    duplicate_genes = velocity_df_cleaned.columns[velocity_df_cleaned.columns.duplicated()].tolist()
+    if duplicate_genes:
+        print(f"WARNING: Velocity DataFrame has {len(duplicate_genes)} duplicate gene names")
+        print(f"Sample duplicates: {duplicate_genes[:10]}")
+        
+        # Remove duplicates - keep first occurrence
+        velocity_df_cleaned = velocity_df_cleaned.loc[:, ~velocity_df_cleaned.columns.duplicated()]
+        print(f"After removing duplicates: {velocity_df_cleaned.shape}")
+        
+        # Recalculate genes_to_use after removing duplicates
+        genes_to_use = [gene for gene in genes_to_use if gene in velocity_df_cleaned.columns]
+        print(f"Genes after removing duplicates: {len(genes_to_use)}")
+    
+    if len(genes_to_use) == 0:
+        raise ValueError(f"No common genes found")
+    
+    print(f"Filtering to {len(common_cells)} cells and {len(genes_to_use)} genes")
+    print(f"genes_to_use sample: {genes_to_use[:10]}")
+    
+    # DEBUG: Check if genes_to_use are actually in velocity_df_cleaned
+    missing_genes = [gene for gene in genes_to_use if gene not in velocity_df_cleaned.columns]
+    if missing_genes:
+        print(f"WARNING: {len(missing_genes)} genes in genes_to_use not in velocity columns")
+        print(f"Sample missing: {missing_genes[:10]}")
+    
+    # Filter velocity DataFrame - be explicit about columns
+    velocity_filtered = velocity_df_cleaned[genes_to_use]  # Filter columns first
+    velocity_filtered = velocity_filtered.loc[common_cells]  # Then filter rows
+    
+    print(f"After column filtering: {velocity_filtered.shape}")
+    
+    # Filter adata
+    # Get original cell names for subsetting
+    cell_mapping = dict(zip(adata_cleaned.obs_names, adata_reference.obs_names))
+    common_cells_original = [cell_mapping[cell] for cell in common_cells]
+    
+    adata_filtered = adata_reference[common_cells_original, genes_to_use]
+    adata_filtered.obs_names = common_cells
+    
+    print(f"Final velocity shape: {velocity_filtered.shape}")
+    print(f"Final adata shape: {adata_filtered.shape}")
+    
+    if velocity_filtered.shape != adata_filtered.shape:
+        print(f"ERROR: Shape mismatch after filtering!")
+        print(f"  Velocity columns: {velocity_filtered.columns.tolist()[:10]}")
+        print(f"  Adata var_names: {adata_filtered.var_names.tolist()[:10]}")
+        raise ValueError(f"Shape mismatch: velocity {velocity_filtered.shape} vs adata {adata_filtered.shape}")
+    
+    # Convert to sparse matrix
+    velocity_sparse = sparse.csr_matrix(velocity_filtered.values)
+    adata_filtered.layers[layer_name] = velocity_sparse
+    
+    print(f"✓ Successfully added velocity to adata layers")
+    
+    return adata_filtered
 
-# Preprocessing the data and caching it 
+def velocity_adata_to_df(adata, layer_name = 'velocity'):
+    if layer_name in adata.layers:
+        velocity_data = adata.layers[layer_name]
+        
+        # Convert sparse to dense if needed
+        if sparse.issparse(velocity_data):
+            velocity_array = velocity_data.toarray()
+        else:
+            velocity_array = velocity_data
+            
+        # Create DataFrame with proper index and columns
+        df = pd.DataFrame(
+            velocity_array,
+            index=adata.obs_names,
+            columns=adata.var_names
+        )
+        return df
+    
+    elif 'velocity' in adata.obsm:
+        # Handle velocity in obsm
+        velocity_array = adata.obsm['velocity']
+        df = pd.DataFrame(
+            velocity_array,
+            index=adata.obs_names,
+            columns=[f"vel_{i}" for i in range(velocity_array.shape[1])]
+        )
+        return df
+    
+    else:
+        raise KeyError(f"Velocity data not found. Available layers: {list(adata.layers.keys())}")
+
+def get_storage_client():
+    """Get Google Cloud Storage client with fallback authentication"""
+    try:
+        client = storage.Client()
+        return client
+    except Exception as auth_error:
+        print(f"Auth error, using default credentials: {auth_error}")
+        credentials, project = default()
+        client = storage.Client(credentials=credentials, project=project)
+        return client
+    
+@app.route('/generate-signed-url', methods=['POST'])
+def generate_signed_url():
+    """Generate a signed URL for direct upload to Cloud Storage"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data received'}), 400
+        
+        filename = data.get('filename')
+        file_type = data.get('file_type', 'h5ad')  
+        
+        if not filename:
+            return jsonify({'error': 'Filename required'}), 400
+        
+        try:
+            client = storage.Client()
+        except Exception as auth_error:
+            print(f"Auth error: {auth_error}")
+            # Fallback: use default credentials
+            credentials, project = default()
+            client = storage.Client(credentials=credentials, project=project)
+        
+        bucket_name = 'stavia-uploads'  # Make sure this bucket exists!
+        bucket = client.bucket(bucket_name)
+        
+        # Create unique filename
+        unique_filename = f"uploads/{uuid.uuid4()}_{filename}"
+        blob = bucket.blob(unique_filename)
+
+        # Generate signed URL (valid for 1 hour)
+        url = blob.generate_signed_url(
+            version='v4',
+            expiration=3600,  # 1 hour
+            method='PUT',
+            content_type='application/octet-stream'
+        )
+        
+        return jsonify({
+            'signed_url': url,
+            'file_path': blob.name,
+            'filename': filename
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@app.route('/process-uploaded-file', methods=['POST'])
+def process_uploaded_file():
+    """Process file after it's uploaded to Cloud Storage"""
+    try:
+        data = request.get_json()
+        file_path = data.get('file_path')
+        file_type = data.get('file_type')  # h5ad, mtx, barcodes, genes, anno
+        
+        if not file_path:
+            return jsonify({'error': 'File path required'}), 400
+        
+        client = get_storage_client()
+        bucket = client.bucket('stavia-uploads')
+        blob = bucket.blob(file_path)
+
+        # Download file to temporary location
+        temp_dir = tempfile.mkdtemp()
+        local_path = os.path.join(temp_dir, os.path.basename(file_path))
+        blob.download_to_filename(local_path)
+        
+        # Process based on file type
+        if file_type == 'h5ad':
+            adata = sc.read_h5ad(local_path)
+        elif file_type == 'mtx':
+            # Handle 10X files
+            pass
+        
+        # Store in your cache and process...
+        INITIAL_ADATA_CACHE[local_path] = adata.copy()
+        
+        # Clean up
+        os.remove(local_path)
+        os.rmdir(temp_dir)
+
+        return jsonify({
+            'success': True,
+            'message': 'File processed successfully',
+            'dimensions': f"{adata.n_obs} cells × {adata.n_vars} genes"
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 def cache_preprocessed_data(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -318,10 +540,15 @@ def cache_preprocessed_data(func):
             # Standard procedures of preprocessing data ***WHAT NEEDS TO BE CHANGED***
             print('Preprocessing Data')
             sc.pp.filter_cells(adata, min_genes=100)
+            print("Pass cell filtering")
             sc.pp.filter_genes(adata, min_cells=10)
+            print("Pass gene filtering")
             sc.pp.normalize_total(adata)
+            print("Pass data normalization")
             sc.pp.log1p(adata)
+            print("Pass log normalization")
             sc.pp.pca(adata, n_comps=100)
+            print("Pass PCA")
 
             # Caching the preprocessed data 
             PREPROCESS_CACHE[file_path] = adata
@@ -344,7 +571,7 @@ def preview(adata):
     if color_scheme not in valid:
         color_scheme = 'viridis'
 
-    pca_plot = umap_plot = parc_plot = None
+    pca_plot = umap_plot = phate_plot = None
 
     if 'pca' in choice:
         sc.pl.pca_variance_ratio(adata, log=False, n_pcs=50, show=False)
@@ -361,24 +588,17 @@ def preview(adata):
         plt.close()
         umap_plot = "data:image/png;base64," + base64.b64encode(umap_img.getvalue()).decode('utf-8')
 
-    if 'parc' in choice: 
-        parc1 = parc.PARC(adata.obsm['X_pca'], jac_std_global=0.15, random_seed =1, small_pop = 50)
-        parc1.run_PARC()
-        parc_labels = parc1.labels
-        adata.obs["PARC"] = pd.Categorical(parc_labels)
-        PREPROCESS_CACHE[session['file_path']] = adata
+    if 'phate' in choice: 
+        phate_op = phate.PHATE(n_components=2, random_state=42)
+        X_phate = phate_op.fit_transform(adata.X.T)
+        adata.obsm['X_phate'] = X_phate
 
-        sc.settings.n_jobs=4
-        sc.pp.neighbors(adata, n_neighbors=10, n_pcs=40)
-        sc.tl.umap(adata)
-
-        plt.figure(figsize=(8,6))
-        sc.pl.umap(adata, color='PARC')
-        parc_img = BytesIO()
-        plt.savefig(parc_img, format='png', bbox_inches='tight', dpi=120)
+        plt.figure(figsize=(10, 8))
+        sc.pl.umap(adata, color='PHATE')
+        phate_img = BytesIO()
+        plt.savefig(phate_img, format='png', bbox_inches='tight', dpi=120)
         plt.close('all')
-        parc_plot = "data:image/png;base64," + base64.b64encode(parc_img.getvalue()).decode('utf-8')
-        print(f"PARC plot size: {len(parc_plot)//1024} KB")
+        phate_plot = "data:image/png;base64," + base64.b64encode(phate_img.getvalue()).decode('utf-8')
 
     # Also returns Anndata information (after preprocessing)
     preview_data = {
@@ -394,13 +614,60 @@ def preview(adata):
         'plots': {
             'pca': pca_plot if pca_plot else None,
             'umap': umap_plot if umap_plot else None,
-            'parc': parc_plot if parc_plot else None
+            'phate': phate_plot if phate_plot else None
         },
     }
     
     return jsonify(safe_json(preview_data))
 
-# Main analysis pipeline 
+def handle_uploaded_file(file):
+    """Handle both CSV and loom files, always return DataFrame"""
+    if file.filename.endswith('.loom'):
+        return loom_to_dataframe(file)
+    
+    elif file.filename.endswith('.h5ad'):
+        file_content = BytesIO(file.read())
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.h5ad') as tmp_file:
+            file_content.seek(0)
+            tmp_file.write(file_content.read())
+            tmp_path = tmp_file.name
+        
+        try:
+            # Just read it as AnnData
+            adata = sc.read_h5ad(tmp_path)
+            print(f"Loaded h5ad: shape={adata.shape}")
+            print(f"Layers: {list(adata.layers.keys())}")
+            return adata  # Return AnnData object
+            
+        finally:
+            os.unlink(tmp_path)
+    else:  
+        return pd.read_csv(BytesIO(file.read()))
+    
+def loom_to_dataframe(file):
+    """Convert loom file to pandas DataFrame"""
+    file_content = BytesIO(file.read())
+    
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.loom') as tmp_file:
+        file_content.seek(0)
+        tmp_file.write(file_content.read())
+        tmp_path = tmp_file.name
+    
+    try:
+        with loompy.connect(tmp_path) as ds:
+            # Use main matrix
+            matrix = ds[:,:].T
+            
+            # Try to get cell and gene names
+            index = ds.ca.CellID if 'CellID' in ds.ca else range(matrix.shape[0])
+            columns = ds.ra.Gene if 'Gene' in ds.ra else range(matrix.shape[1])
+            
+            df = pd.DataFrame(matrix, index=index, columns=columns)
+        return df
+    finally:
+        os.unlink(tmp_path)
+
 @app.route('/analyze', methods=['POST'])
 @cache_preprocessed_data
 def analyze(adata):
@@ -432,15 +699,34 @@ def analyze(adata):
 
         # Saving files other than the main ones 
         file_data = {}
-        for file_type in ['time-upload', 'velocity-matrix-upload', 'gene-matrix-upload', 'root-upload', 'csv-upload', 'cytometry-upload']:
+        velocity_adata = None
+
+        for file_type in ['time-upload', 'velocity-matrix-upload', 'gene-matrix-upload', 'root-upload', 'csv-upload']:
             if file_type in request.files:
                 file = request.files[file_type]
                 if file.filename != '':
-                    # Added this because of naming conflict, you can change the name later to make it neater
-                    if file_type == 'csv-upload':
-                        file_data['true_labels'] = pd.read_csv(BytesIO(file.read()))
-                    else:
-                        file_data[file_type] = pd.read_csv(BytesIO(file.read()))
+                    try:
+                        if file_type == 'csv-upload':
+                            file_data['true_labels'] = handle_uploaded_file(file)
+                        
+                        elif file_type == 'velocity-matrix-upload':
+                            vel_file = request.files['velocity-matrix-upload']
+                            velocity_data = handle_uploaded_file(vel_file)
+                        
+                            if isinstance(velocity_data, ad.AnnData):
+                                print("Got AnnData from h5ad file")
+                                velocity_adata = velocity_data
+                                file_data['velocity_adata'] = velocity_adata
+                                file_data['velocity-matrix-upload'] = velocity_adata_to_df(adata=velocity_adata, layer_name = 'velocity')
+                            else:
+                                print("Got DataFrame from file")
+                                file_data['velocity-matrix-upload'] = velocity_data
+                                file_data['velocity_adata'] = velocity_df_to_adata(velocity_df=velocity_data, adata_reference=adata, layer_name='velocity')
+                        else:
+                            file_data[file_type] = handle_uploaded_file(file)
+                    except Exception as e:
+                        print(f"Error processing {file.filename}: {e}")
+                        file_data[file_type] = None
 
         # RUN VIA ANALYSIS (See via_analysis.py)
         results = run_via_analysis(adata=adata, params=params, file_data=file_data)
@@ -448,13 +734,13 @@ def analyze(adata):
             return jsonify(results), 500
             
         v0 = results['via_obj']
+        adata = results['adata']
 
         # Store the via object for further plotting 
         global VIA_CACHE        
         VIA_CACHE['via_obj'] = v0
 
-        # Starts plotting (See plotting.py)
-        plots = via_plot(params=params, v0=v0, file_data=file_data)
+        plots = via_plot(params=params, v0=v0, file_data=file_data, adata=adata)
         
         return jsonify({'success': True, 'plots': plots})
         
@@ -508,10 +794,7 @@ def download_all():
 
 # When the script is run directly, run the app 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', use_reloader=False, port=10000, debug=True)
-# When another script imports this file as a module, create a database 
-# Actually problematic. You should move this to the top (below database initialization), 
-# but it didn't work for me when exporting the app. You can try.
+    app.run(host='0.0.0.0', use_reloader=False, port=10000, debug=True, reloader_type='watchdog', threaded=True)
 else: 
     with app.app_context():
         print("Creating database tables...")

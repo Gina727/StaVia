@@ -72,9 +72,7 @@ def run_via_analysis(adata, params, file_data = None):
         else: 
             if true_label and isinstance(true_label, str):
                 if true_label.lower() == 'none' and adata_obs.lower() == 'none':
-                if true_label.lower() == 'none' and adata_obs.lower() == 'none':
                     true_label = None
-                elif true_label.lower() != 'none' and adata_obs.lower() == 'none':
                 elif true_label.lower() != 'none' and adata_obs.lower() == 'none':
                     try:
                         true_label = [item.strip() for item in true_label.split(',')]
@@ -90,14 +88,6 @@ def run_via_analysis(adata, params, file_data = None):
                         true_label = adata.obs["PARC"]
                     else: 
                         true_label = adata.obs[adata_obs]
-                else:
-                    if "annotation" in adata.obs:
-                        true_label = adata.obs["annotation"]
-                    if "PARC" in adata.obs:
-                        true_label = adata.obs["PARC"]
-                    else: 
-                        true_label = adata.obs[adata_obs]
-
         if time_series_file:
             try:
                 time_series_labels = []

@@ -51,11 +51,11 @@ def run_via_analysis(adata, params, file_data = None):
             root_upload_file = file_data.get('root-upload')
             true_label_file = file_data.get('csv-upload')
             spatial_coords_file = file_data.get('coords-upload')
-            cytometry_file = file_data.get('cytometry-upload')
+            cytometry_file_features = file_data.get('cytometry-features-upload')
+            cytometry_file_phase = file_data.get('cytometry-phase-upload')
 
         results = {}
 
-        true_label = None
         true_label = None
         if true_label_file:
             try:
@@ -300,73 +300,95 @@ def run_via_analysis(adata, params, file_data = None):
             spatial_weight = 0
         
         if do_cytometry:
-            print(f"Type of cytometry_file: {type(cytometry_file)}")
+            print(f"Type of cytometry_file: {type(cytometry_file_features)}")
             try:
-                if 'Unnamed: 0' in cytometry_file.columns:
-                    cytometry = cytometry_file.drop('Unnamed: 0', axis=1)
+                # Load and clean the cytometry data
+                if 'Unnamed: 0' in cytometry_file_features.columns:
+                    df = cytometry_file_features.drop('Unnamed: 0', axis=1)
                 else:
-                    cytometry = cytometry_file
+                    df = cytometry_file_features
                 
-                cytometry = cytometry.dropna()
-                print(f'Loaded cytometry file with shape: {cytometry.shape}')
-                
-                # Debug: Check what we're working with
-                print(f"Columns type: {type(cytometry.columns)}")
-                print(f"First few columns: {cytometry.columns[:5].tolist()}")
-                
-                # Create AnnData object with explicit parameters
-                ad = sc.AnnData(X=cytometry.values, dtype=cytometry.values.dtype)
-                print(f'Created AnnData with shape: {ad.shape}')
-                
-                # Set variable names - ensure it's a list
-                if hasattr(cytometry.columns, 'tolist'):
-                    var_names = cytometry.columns.tolist()
-                else:
-                    var_names = list(cytometry.columns)
-                
-                ad.var_names = var_names
-                print(f'Set var_names, type: {type(ad.var_names)}')
-                
-                # Set observation names
-                obs_names = [f"cell_{i}" for i in range(cytometry.shape[0])]
-                ad.obs_names = obs_names
-                
-                # Verify the object
-                print(f'AnnData X shape: {ad.X.shape}')
-                print(f'AnnData var_names length: {len(ad.var_names)}')
-                print(f'AnnData obs_names length: {len(ad.obs_names)}')
-                
-                # Continue with processing
-                sc.pp.scale(ad)
-                sc.tl.pca(ad, svd_solver='arpack')
-                print(f'PCA is finished')
-                
-                X_in = ad.X
-                cytometry_X = pd.DataFrame(X_in, columns=var_names)
-                
-                X_in = cytometry_X.values
-                
-                # Create new AnnData for processed data
-                ad_processed = sc.AnnData(X=cytometry_X.values, dtype=cytometry_X.values.dtype)
-                ad_processed.var_names = var_names
-                ad_processed.obs_names = obs_names[:cytometry_X.shape[0]]  # Adjust if needed
-                
-                sc.tl.pca(ad_processed, svd_solver='arpack')
-                print(f'End cytometry input')
+                df = df.dropna()
+                print(f'Loaded cytometry file with shape: {df.shape}')
+                true_label = cytometry_file_phase
+                true_label = list(true_label['phase'].values.flatten())
+                print('There are ', len(true_label), 'MCF7 cells and ', df.shape[1], 'features')
+                ad = sc.AnnData(df)
+                ad.var_names = df.columns
 
+                sc.pp.scale(ad)
+
+                sc.tl.pca(ad, svd_solver='arpack')
+                X_in = ad.X
+                df_X = pd.DataFrame(X_in)
+
+                df_X.columns = [i for i in ad.var_names]
+                
+                # # Scale specific features if they exist (like in reference code)
+                if 'Area' in df_X.columns:
+                    df_X['Area'] = df_X['Area'] * 3
+                if 'Dry Mass' in df_X.columns:
+                    df_X['Dry Mass'] = df_X['Dry Mass'] * 3
+                if 'Volume' in df_X.columns:
+                    df_X['Volume'] = df_X['Volume'] * 20
+                print('Applied feature-specific scaling')
+
+                X_in = df_X.values
+                ad = sc.AnnData(df_X)
+
+                sc.tl.pca(ad, svd_solver='arpack')
+                ad.var_names = df_X.columns
+                print('Applied PCA')
+
+                cell_dict = {'T1_M1': 'yellow', 'T2_M1': 'yellowgreen', 'T1_M2': 'orange', 'T2_M2': 'darkgreen', 'T1_M3': 'red', 'T2_M3': 'blue'}
+                cell_phase_dict = {'T1_M1': 'G1', 'T2_M1': 'G1', 'T1_M2': 'S', 'T2_M2': 'S', 'T1_M3': 'M/G2', 'T2_M3': 'M/G2'}
+
+                knn = 20
+                random_seed = 1
+                true_label = [cell_phase_dict[i] for i in true_label]
             except Exception as e:
                 print(f"Error processing cytometry CSV: {e}")
                 import traceback
-                traceback.print_exc()  # This will show in server logs
+                traceback.print_exc()
                 knn = 20
-                jac_std_global = 0.5
                 random_seed = 1
                 root_user = None
+                true_label = None
+                raise 
+
+        print("\n=== PRE-VIA VARIABLE CHECK ===")
+        print(f"adata type: {type(adata)}")
+        print(f"adata is None: {adata is None}")
+
+        # Check all variables VIA needs
+        variables_to_check = {
+            'true_label': true_label,
+            'memory': memory,
+            'knn': knn,
+            'too_big_factor': too_big_factor,
+            'root_user': root_user,
+            'cluster_graph_pruning': cluster_graph_pruning,
+            'time_series': time_series,
+            'time_series_labels': time_series_labels,
+            'edgebundle_pruning': edgebundle_pruning,
+            'small_pop': small_pop,
+            'velo_weight': velo_weight,
+            'velocity_matrix': velocity_matrix,
+            'gene_matrix': gene_matrix,
+            'random_seed': random_seed,
+            'ncomp': ncomp,
+            'coords': coords,
+            'spatial_knn_trajectory': spatial_knn_trajectory,
+            'do_spatial': do_spatial
+        }
+
+        if do_cytometry:
+            via_input_file = X_in
+        else:
+            via_input_file = adata.obsm['X_pca'][:,:ncomp]
         
-
-
         print('RUN VIA')
-        v0 = via.VIA(adata.obsm['X_pca'][:,:ncomp], true_label = true_label, memory = memory,
+        v0 = via.VIA(via_input_file, true_label = true_label, memory = memory,
                     edgepruning_clustering_resolution=edgepruning_clustering_resolution, 
                     edgepruning_clustering_resolution_local=1, knn=knn,
                     too_big_factor=too_big_factor, root_user=root_user,
@@ -381,8 +403,9 @@ def run_via_analysis(adata, params, file_data = None):
                     x_lazy=0.99, alpha_teleport=0.99, 
                     viagraph_decay = 1.0, 
                     preserve_disconnected=False,
-                    do_spatial_knn=do_spatial, do_spatial_layout= do_spatial, spatial_coords = coords, spatial_knn=spatial_knn_trajectory)
-        
+                    do_spatial_knn=do_spatial, do_spatial_layout= do_spatial, spatial_coords = coords, spatial_knn=spatial_knn_trajectory, 
+                    pseudotime_threshold_TS=40) 
+
         v0.run_VIA()
         if 'X_umap' in adata.obsm:
             v0.embedding = adata.obsm['X_umap'][:,:2]
@@ -396,3 +419,49 @@ def run_via_analysis(adata, params, file_data = None):
     
     except Exception as e:
         return {'error': str(e)}
+    
+# Get embedding value for cytometry
+def via_analysis_embedding(params, file_data=None):
+    print("Calculating embedding")
+    data_categories = params.get('par_option', [])
+    do_cytometry = 'cytometry' in data_categories
+    if file_data is not None: 
+        cytometry_file_features = file_data.get('cytometry-features-upload')
+
+    if do_cytometry:
+        # Load and clean the cytometry data
+        if 'Unnamed: 0' in cytometry_file_features.columns:
+            df = cytometry_file_features.drop('Unnamed: 0', axis=1)
+        else:
+            df = cytometry_file_features
+        
+        df = df.dropna()
+        ad = sc.AnnData(df)
+        ad.var_names = df.columns
+
+        sc.pp.scale(ad)
+        sc.tl.pca(ad, svd_solver='arpack')
+        X_in = ad.X
+        df_X = pd.DataFrame(X_in)
+
+        df_X.columns = [i for i in ad.var_names]
+        
+        # # Scale specific features if they exist (like in reference code)
+        if 'Area' in df_X.columns:
+            df_X['Area'] = df_X['Area'] * 3
+        if 'Dry Mass' in df_X.columns:
+            df_X['Dry Mass'] = df_X['Dry Mass'] * 3
+        if 'Volume' in df_X.columns:
+            df_X['Volume'] = df_X['Volume'] * 20
+        print('Applied feature-specific scaling')
+
+        X_in = df_X.values
+        ad = sc.AnnData(df_X)
+        sc.tl.pca(ad, svd_solver='arpack')
+        ad.var_names = df_X.columns
+
+        embedding = umap.UMAP().fit_transform(ad.obsm['X_pca'][:, 0:20])
+        phate_op = phate.PHATE()
+        embedding = phate_op.fit_transform(X_in)
+
+        return embedding

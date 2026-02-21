@@ -74,7 +74,7 @@ def more_plot(lineages, genes, v0, adata):
     except Exception as e:
         return {'error': str(e)}
 
-def via_plot(params, v0, file_data, adata=None):
+def via_plot(params, v0, file_data, adata=None, embedding=None):
     try: 
         print("=== VIA_PLOT FUNCTION START ===")
         print(f"v0 is None: {v0 is None}")
@@ -149,20 +149,25 @@ def via_plot(params, v0, file_data, adata=None):
                         true_label = None
 
         # ATLAS PLOT
-        via.via_atlas_emb(via_object=v0, n_components=2, alpha=1.0, negative_sample_rate=5, 
-                  gamma=1.0, min_dist=0.1, random_state=0, n_epochs=100)
-                # Now plot the embedding
-        plt.figure(figsize=(10, 8))
-        plt.scatter(v0.embedding[:, 0], v0.embedding[:, 1], 
-                    c=v0.labels, cmap='viridis', s=5, alpha=0.6)
-        plt.title("VIA Atlas Embedding")
-        plt.xlabel("Component 1")
-        plt.ylabel("Component 2")
-        plt.colorbar(label="Cluster")
-        atlas_img = BytesIO()
-        plt.savefig(atlas_img, format='png', bbox_inches='tight', dpi=120)
-        plt.close()
-        plots['atlas'] = "data:image/png;base64," + base64.b64encode(atlas_img.getvalue()).decode('utf-8')
+        try:
+            via.via_atlas_emb(via_object=v0, n_components=2, alpha=1.0, negative_sample_rate=5, 
+                    gamma=1.0, min_dist=0.1, random_state=0, n_epochs=100)
+                    # Now plot the embedding
+            plt.figure(figsize=(10, 8))
+            plt.scatter(v0.embedding[:, 0], v0.embedding[:, 1], 
+                        c=v0.labels, cmap='viridis', s=5, alpha=0.6)
+            plt.title("VIA Atlas Embedding")
+            plt.xlabel("Component 1")
+            plt.ylabel("Component 2")
+            plt.colorbar(label="Cluster")
+            atlas_img = BytesIO()
+            plt.savefig(atlas_img, format='png', bbox_inches='tight', dpi=120)
+            plt.close()
+            plots['atlas'] = "data:image/png;base64," + base64.b64encode(atlas_img.getvalue()).decode('utf-8')
+        except Exception as e:
+            print(f"Error in atlas plot: {e}")
+            import traceback
+            traceback.print_exc()
 
         # VIA GRAPH
         print(f'{datetime.now()}\t plotting piechart_graph')
@@ -301,7 +306,141 @@ def via_plot(params, v0, file_data, adata=None):
                 plt.savefig(mds_img, format='png', bbox_inches='tight', dpi=120)
                 plt.close()
                 plots['mds'] = "data:image/png;base64," + base64.b64encode(mds_img.getvalue()).decode('utf-8')
-
+    
+        if do_cytomtetry:
+            try:
+                print("=== STARTING CYTOMETRY PLOTTING ===")
+                
+                # DEBUG: Print available information
+                print(f"v0 type: {type(v0)}")
+                print(f"v0 attributes: {[attr for attr in dir(v0) if not attr.startswith('_')]}")
+                
+                # Check for embeddings
+                print(f"Has embedding attribute: {hasattr(v0, 'embedding')}")
+                if hasattr(v0, 'embedding') and v0.embedding is not None:
+                    print(f"v0.embedding shape: {v0.embedding.shape}")
+                    print(f"v0.embedding sample: {v0.embedding[:5]}")
+                
+                # Check adata for embeddings
+                if adata is not None:
+                    print(f"adata.obsm keys: {list(adata.obsm.keys())}")
+                    for key in adata.obsm.keys():
+                        print(f"  {key} shape: {adata.obsm[key].shape}")
+                
+                # Try different embedding options
+                embedding_to_use = None
+                
+                # Option 1: Use v0.embedding
+                if hasattr(v0, 'embedding') and v0.embedding is not None:
+                    embedding_to_use = v0.embedding
+                    print("Using v0.embedding")
+                
+                # Option 2: Use adata embedding
+                elif adata is not None:
+                    if 'X_phate' in adata.obsm:
+                        embedding_to_use = adata.obsm['X_phate']
+                        print("Using adata.obsm['X_phate']")
+                    elif 'X_pca' in adata.obsm:
+                        embedding_to_use = adata.obsm['X_pca']
+                        print("Using adata.obsm['X_pca']")
+                    elif 'X_umap' in adata.obsm:
+                        embedding_to_use = adata.obsm['X_umap']
+                        print("Using adata.obsm['X_umap']")
+                
+                if embedding_to_use is None:
+                    print("No embedding found, computing one...")
+                    # Compute a simple embedding if none exists
+                    from sklearn.manifold import MDS
+                    if hasattr(v0, 'milestone_net'):
+                        # Use milestone network if available
+                        mds = MDS(n_components=2, random_state=0)
+                        embedding_to_use = mds.fit_transform(v0.milestone_net)
+                        print(f"Computed MDS embedding with shape: {embedding_to_use.shape}")
+                    else:
+                        raise ValueError("No embedding available and cannot compute one")
+                
+                # Now try to create the plot
+                print(f"Using embedding with shape: {embedding_to_use.shape}")
+                
+                # Create figure
+                fig, ax = plt.subplots(figsize=(12, 10))
+                
+                # Try scatter plot first to verify embedding works
+                plt.scatter(embedding_to_use[:, 0], embedding_to_use[:, 1], 
+                        c=v0.labels if hasattr(v0, 'labels') else 'blue', 
+                        cmap='viridis', s=10, alpha=0.6)
+                plt.colorbar(label='Clusters')
+                plt.title("Embedding Test Plot")
+                
+                # Save test plot
+                test_img = BytesIO()
+                plt.savefig(test_img, format='png', bbox_inches='tight', dpi=120)
+                plt.close()
+                plots['cyto_test'] = "data:image/png;base64," + base64.b64encode(test_img.getvalue()).decode('utf-8')
+                print("Test plot saved successfully")
+                
+                # Now try the actual via_streamplot
+                print("Attempting via.via_streamplot...")
+                
+                # Try different parameter combinations
+                try:
+                    fig, ax = plt.subplots(figsize=(12, 10))
+                    
+                    # Check what parameters via_streamplot accepts
+                    import inspect
+                    print(f"via_streamplot signature: {inspect.signature(via.via_streamplot)}")
+                    
+                    # Attempt 1: Standard parameters
+                    via.via_streamplot(via_object=v0, 
+                                    embedding=embedding_to_use,
+                                    scatter_size=200, 
+                                    scatter_alpha=0.1,
+                                    density_grid=0.5, 
+                                    density_stream=1, 
+                                    smooth_transition=1)
+                    
+                except TypeError as te:
+                    print(f"TypeError with standard parameters: {te}")
+                    
+                    # Attempt 2: Alternative parameter names
+                    try:
+                        fig, ax = plt.subplots(figsize=(12, 10))
+                        via.via_streamplot(via_object=v0,
+                                        external_embedding=embedding_to_use,
+                                        size=200,
+                                        alpha=0.1,
+                                        grid_density=0.5,
+                                        stream_density=1)
+                    except Exception as e2:
+                        print(f"Alternative parameters also failed: {e2}")
+                        
+                        # Attempt 3: Minimal parameters
+                        fig, ax = plt.subplots(figsize=(12, 10))
+                        via.via_streamplot(via_object=v0)
+                
+                plt.title("Cytometry Streamplot")
+                cyto_img = BytesIO()
+                plt.savefig(cyto_img, format='png', bbox_inches='tight', dpi=120)
+                plt.close()
+                
+                plots['cyto'] = "data:image/png;base64," + base64.b64encode(cyto_img.getvalue()).decode('utf-8')
+                print("Cytometry plot generated successfully")
+                
+            except Exception as e:
+                print(f"ERROR in cytometry plotting: {e}")
+                import traceback
+                traceback.print_exc()
+                
+                # Create error plot with details
+                plt.figure(figsize=(10, 8))
+                plt.text(0.1, 0.5, f"Cytometry plot error:\n{str(e)}\n\nCheck terminal for details", 
+                        ha='left', va='center', fontsize=10, wrap=True)
+                plt.axis('off')
+                cyto_error_img = BytesIO()
+                plt.savefig(cyto_error_img, format='png', bbox_inches='tight', dpi=120)
+                plt.close()
+                plots['cyto_error'] = "data:image/png;base64," + base64.b64encode(cyto_error_img.getvalue()).decode('utf-8')
+                
         print(f"Total plots created: {len(plots)}")
         print(f"Plot keys: {list(plots.keys())}")
         return plots

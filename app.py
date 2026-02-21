@@ -1,6 +1,6 @@
 import pandas as pd
 import scanpy as sc
-from via_analysis import run_via_analysis
+from via_analysis import run_via_analysis, via_analysis_embedding
 from plotting import via_plot, more_plot
 from flask import Flask, render_template, request, jsonify, send_file, session, url_for, redirect
 from flask_sqlalchemy import SQLAlchemy
@@ -564,7 +564,7 @@ def cache_preprocessed_data(func):
 def preview(adata):
     # Get choices (from checkboxes) and colors 
     choice = request.form.getlist('em') 
-    color = request.form.get('color_umap', 'parc_cluster')
+    color = request.form.get('color_umap')
     color_scheme = request.form.get('color_scheme', 'viridis')
 
     valid = ['viridis', 'rainbow', 'paired', 'plasma', 'inferno']
@@ -701,7 +701,7 @@ def analyze(adata):
         file_data = {}
         velocity_adata = None
 
-        for file_type in ['time-upload', 'velocity-matrix-upload', 'gene-matrix-upload', 'root-upload', 'csv-upload']:
+        for file_type in ['time-upload', 'velocity-matrix-upload', 'gene-matrix-upload', 'root-upload', 'csv-upload', 'cytometry-features-upload', 'cytometry-phase-upload']:
             if file_type in request.files:
                 file = request.files[file_type]
                 if file.filename != '':
@@ -730,6 +730,7 @@ def analyze(adata):
 
         # RUN VIA ANALYSIS (See via_analysis.py)
         results = run_via_analysis(adata=adata, params=params, file_data=file_data)
+        embedding = via_analysis_embedding(params=params, file_data=file_data)
         if 'error' in results:
             return jsonify(results), 500
             
@@ -740,7 +741,7 @@ def analyze(adata):
         global VIA_CACHE        
         VIA_CACHE['via_obj'] = v0
 
-        plots = via_plot(params=params, v0=v0, file_data=file_data, adata=adata)
+        plots = via_plot(params=params, v0=v0, file_data=file_data, adata=adata, embedding=embedding)
         
         return jsonify({'success': True, 'plots': plots})
         
@@ -794,7 +795,7 @@ def download_all():
 
 # When the script is run directly, run the app 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', use_reloader=False, port=10000, debug=True, reloader_type='watchdog', threaded=True)
+    app.run(host='0.0.0.0', use_reloader=True, port=10000, debug=True, reloader_type='watchdog', threaded=True)
 else: 
     with app.app_context():
         print("Creating database tables...")
